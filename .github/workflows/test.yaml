@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: ir_rf_hub/backend
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: ir_rf_hub/frontend
     steps:
       - uses: actions/checkout@v7.0.1
 

@@ -1,0 +1,4 @@
+# https://developers.home-assistant.io/docs/apps/repository#repository-configuration
+name: IR/RF Command Hub
+url: "https://github.com/vgyy4/ir-rf-hub"
+maintainer: vgyy4

@@ -41,7 +41,7 @@ jobs:
         id: info
         uses: home-assistant/actions/helpers/info@master
         with:
-          path: "."
+          path: "./ir_rf_hub"
 
       - name: Normalize app information
         id: normalize
@@ -87,7 +87,7 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           container-registry-password: ${{ secrets.GITHUB_TOKEN }}
-          context: "."
+          context: "./ir_rf_hub"
           image: ${{ matrix.image }}
           image-tags: |
             ${{ needs.prepare.outputs.version }}

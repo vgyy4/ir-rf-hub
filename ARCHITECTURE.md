@@ -13,7 +13,7 @@ gained IR receive support recently.
 
 ## Half-duplex TX/RX concurrency
 
-`backend/ir_rf_hub/esphome/device_session.py` serializes every TX and RX
+`ir_rf_hub/backend/ir_rf_hub/esphome/device_session.py` serializes every TX and RX
 operation against one device through a single `asyncio.Lock`:
 
 - A recording session holds the lock for its entire duration. Since
@@ -26,7 +26,7 @@ operation against one device through a single `asyncio.Lock`:
   150ms) run *before* the lock is released, giving half-duplex RF
   front-ends (e.g. CC1101) time to switch modes. Wire your device's
   `on_transmit`/`on_complete` triggers to actually flip the front-end --
-  see `DOCS.md`.
+  see `ir_rf_hub/DOCS.md`.
 
 ## Data model
 

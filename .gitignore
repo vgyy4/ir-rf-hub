@@ -6,7 +6,7 @@ __pycache__/
 
 # Node
 node_modules/
-backend/ir_rf_hub/static/
+ir_rf_hub/backend/ir_rf_hub/static/
 
 # Local dev data (SQLite DB, Fernet key, etc.)
 .devdata/
