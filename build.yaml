@@ -1,7 +1,6 @@
 build_from:
   aarch64: ghcr.io/home-assistant/aarch64-base-python:3.13-alpine3.20
   amd64: ghcr.io/home-assistant/amd64-base-python:3.13-alpine3.20
-  armv7: ghcr.io/home-assistant/armv7-base-python:3.13-alpine3.20
 labels:
   org.opencontainers.image.title: "IR/RF Command Hub"
   org.opencontainers.image.description: "Record, name, edit, and fire IR/RF commands through ESPHome IR/RF proxy devices"
