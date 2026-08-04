@@ -46,6 +46,13 @@ COPY --from=frontend-build /backend/ir_rf_hub/static /app/ir_rf_hub/static
 
 RUN pip install --no-cache-dir --break-system-packages .
 
+# alembic.ini sits next to pyproject.toml, not inside the ir_rf_hub/
+# package -- `pip install .` (packages = ["ir_rf_hub"]) never ships it, so
+# it has to be placed explicitly at a fixed path the running app can find
+# regardless of where pip decided to install the package itself (that's
+# not /app -- see IR_RF_HUB_ALEMBIC_INI in the run script and config.py).
+COPY backend/alembic.ini /app/alembic.ini
+
 COPY rootfs /
 
 RUN chmod a+x /etc/s6-overlay/s6-rc.d/ir-rf-hub/run \

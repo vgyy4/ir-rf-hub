@@ -16,6 +16,12 @@ class Settings(BaseSettings):
 
     log_level: str = "info"
     data_dir: Path = Path("./data")
+    # Set by the container's run script (IR_RF_HUB_ALEMBIC_INI) -- alembic.ini
+    # isn't inside the ir_rf_hub package, so `pip install .` never ships it
+    # alongside the installed code (which can end up anywhere, e.g.
+    # site-packages/). None here means "not containerized", handled by
+    # main.py's fallback.
+    alembic_ini: Path | None = None
 
     @property
     def db_path(self) -> Path:

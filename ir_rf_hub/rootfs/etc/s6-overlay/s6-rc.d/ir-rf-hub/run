@@ -5,6 +5,9 @@ bashio::log.info "Starting IR/RF Command Hub..."
 
 export IR_RF_HUB_LOG_LEVEL="$(bashio::config 'log_level')"
 export IR_RF_HUB_DATA_DIR="/data"
+# alembic.ini isn't part of the ir_rf_hub package, so `pip install .`
+# never ships it -- the Dockerfile copies it to this fixed path instead.
+export IR_RF_HUB_ALEMBIC_INI="/app/alembic.ini"
 
 exec python3 -m uvicorn ir_rf_hub.main:app \
     --host 0.0.0.0 \

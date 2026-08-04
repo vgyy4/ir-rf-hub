@@ -28,20 +28,27 @@ from ir_rf_hub.security import encode_pairing_code, generate_pairing_token
 
 logger = logging.getLogger(__name__)
 
-_BACKEND_ROOT = Path(__file__).resolve().parent.parent
-_STATIC_DIR = Path(__file__).resolve().parent / "static"
+# Anchored to wherever the ir_rf_hub package itself actually lives -- true
+# both in local dev (backend/ir_rf_hub/) and once pip-installed inside a
+# container (e.g. site-packages/ir_rf_hub/, an entirely different layout).
+# db/migrations/ is a real subdirectory of the package so this always finds
+# it; alembic.ini is a sibling of the package in the source tree (not
+# shipped by `pip install .` at all), so it needs its own path -- see
+# config.py's alembic_ini_path / the Dockerfile's explicit COPY of it.
+_PACKAGE_DIR = Path(__file__).resolve().parent
+_STATIC_DIR = _PACKAGE_DIR / "static"
 
 _PAIRING_TOKEN_KEY = "pairing_token"
 _INTEGRATION_API_PORT = 8099  # single port serves both Ingress UI and the integration API
 
 
 def _run_migrations() -> None:
-    alembic_ini = _BACKEND_ROOT / "alembic.ini"
+    alembic_ini = settings.alembic_ini or (_PACKAGE_DIR.parent / "alembic.ini")
     if not alembic_ini.exists():
         logger.warning("alembic.ini not found at %s, skipping migrations", alembic_ini)
         return
     cfg = AlembicConfig(str(alembic_ini))
-    cfg.set_main_option("script_location", str(_BACKEND_ROOT / "ir_rf_hub" / "db" / "migrations"))
+    cfg.set_main_option("script_location", str(_PACKAGE_DIR / "db" / "migrations"))
     alembic_command.upgrade(cfg, "head")
 
 
