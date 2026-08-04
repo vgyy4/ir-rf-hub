@@ -1,0 +1,13 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+
+bashio::log.info "Starting IR/RF Command Hub..."
+
+export IR_RF_HUB_LOG_LEVEL="$(bashio::config 'log_level')"
+export IR_RF_HUB_DATA_DIR="/data"
+
+exec python3 -m uvicorn ir_rf_hub.main:app \
+    --host 0.0.0.0 \
+    --port 8099 \
+    --workers 1 \
+    --log-level "${IR_RF_HUB_LOG_LEVEL}"

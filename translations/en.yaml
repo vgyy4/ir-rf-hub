@@ -1,0 +1,4 @@
+configuration:
+  log_level:
+    name: Log level
+    description: Controls the verbosity of the App's log output.
