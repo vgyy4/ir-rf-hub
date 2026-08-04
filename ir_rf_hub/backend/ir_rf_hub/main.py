@@ -15,6 +15,7 @@ from sqlalchemy import select
 from ir_rf_hub import __version__
 from ir_rf_hub.api.rest.commands import router as commands_router
 from ir_rf_hub.api.rest.devices import router as devices_router
+from ir_rf_hub.api.rest.integration import PAIRED_KEY
 from ir_rf_hub.api.rest.integration import router as integration_router
 from ir_rf_hub.api.rest.recording import router as recording_router
 from ir_rf_hub.api.ws.events import router as ws_events_router
@@ -23,7 +24,7 @@ from ir_rf_hub.config import settings
 from ir_rf_hub.db.session import session_scope
 from ir_rf_hub.db.models import Setting
 from ir_rf_hub.esphome.device_manager import device_manager
-from ir_rf_hub.schemas import HealthResponse, PairingCodeResponse
+from ir_rf_hub.schemas import HealthResponse, PairingStatusResponse
 from ir_rf_hub.security import encode_pairing_code, generate_pairing_token
 
 logger = logging.getLogger(__name__)
@@ -84,13 +85,24 @@ def create_app() -> FastAPI:
     async def health() -> HealthResponse:
         return HealthResponse(version=__version__)
 
-    @app.get("/api/integration/pairing-code", response_model=PairingCodeResponse)
-    async def pairing_code() -> PairingCodeResponse:
+    @app.get("/api/pairing-status", response_model=PairingStatusResponse)
+    async def pairing_status() -> PairingStatusResponse:
+        """Polled by the SPA on load (and while showing the blocking
+        pairing gate) to decide whether to show the rest of the app at
+        all. There's deliberately no "Settings" page this lives on --
+        this is the only place the pairing code is ever shown, and only
+        for as long as nothing has paired yet.
+        """
+        async with session_scope() as session:
+            paired_row = await session.get(Setting, PAIRED_KEY)
+        if paired_row is not None and paired_row.value == "true":
+            return PairingStatusResponse(paired=True, code=None)
+
         token = await _get_or_create_pairing_token()
         # Internal Supervisor-network hostname for a locally-installed App
         # with slug ir_rf_hub follows the `local-<slug-with-dashes>` pattern.
         code = encode_pairing_code(host="local-ir-rf-hub", port=_INTEGRATION_API_PORT, token=token)
-        return PairingCodeResponse(code=code)
+        return PairingStatusResponse(paired=False, code=code)
 
     app.include_router(devices_router)
     app.include_router(commands_router)

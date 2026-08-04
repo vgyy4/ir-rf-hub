@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { EspDeviceSummary } from "../api";
+  import CheckIcon from "@lucide/svelte/icons/check";
 
   interface Props {
     devices: EspDeviceSummary[];
@@ -8,85 +9,46 @@
   }
 
   let { devices, selectedId, onSelect }: Props = $props();
+
+  const ONLINE_STATES = new Set(["idle", "rx_active", "tx_active", "rx_settling", "tx_settling"]);
 </script>
 
 {#if devices.length === 0}
-  <p class="empty">No matching ESPHome devices found. Add one in Settings first.</p>
+  <p class="text-surface-500 text-sm italic">
+    No matching ESPHome devices found. Add one with the "Devices" button first.
+  </p>
 {:else}
-  <ul class="list">
+  <ul class="flex max-h-70 flex-col gap-2 overflow-y-auto">
     {#each devices as device (device.id)}
       <li>
         <button
           type="button"
-          class="device"
-          class:selected={device.id === selectedId}
+          class={[
+            "card w-full p-3 text-left transition-colors",
+            device.id === selectedId
+              ? "preset-tonal-primary border-primary-500 border"
+              : "preset-filled-surface-100-900 hover:preset-tonal-surface border border-transparent",
+          ].join(" ")}
           onclick={() => onSelect(device.id)}
         >
-          <span class="name">{device.name}</span>
-          <span class="status" class:online={device.connection_state === "idle" || device.connection_state === "rx_active" || device.connection_state === "tx_active"}>
-            {device.connection_state}
-          </span>
+          <div class="flex items-center justify-between gap-3">
+            <span class="font-medium">{device.name}</span>
+            <div class="flex items-center gap-2">
+              <span
+                class={[
+                  "text-xs tracking-wide uppercase",
+                  ONLINE_STATES.has(device.connection_state) ? "text-success-500" : "text-surface-500",
+                ].join(" ")}
+              >
+                {device.connection_state}
+              </span>
+              {#if device.id === selectedId}
+                <CheckIcon class="text-primary-500 size-4" />
+              {/if}
+            </div>
+          </div>
         </button>
       </li>
     {/each}
   </ul>
 {/if}
-
-<style>
-  .list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-height: 280px;
-    overflow-y: auto;
-  }
-
-  .device {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    border-radius: 10px;
-    border: 1px solid #333944;
-    background: #22262e;
-    color: inherit;
-    cursor: pointer;
-    font-size: 0.95rem;
-    text-align: left;
-  }
-
-  .device.selected {
-    border-color: #58a6ff;
-    background: #1e2b3d;
-  }
-
-  .status {
-    font-size: 0.75rem;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-  }
-
-  .status.online {
-    color: #3fb950;
-  }
-
-  .empty {
-    color: #6b7280;
-    font-style: italic;
-  }
-
-  @media (prefers-color-scheme: light) {
-    .device {
-      background: #f3f4f6;
-      border-color: #d1d5db;
-    }
-    .device.selected {
-      background: #e8f1ff;
-    }
-  }
-</style>

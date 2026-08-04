@@ -19,6 +19,14 @@ class PairingCodeResponse(BaseModel):
     code: str
 
 
+class PairingStatusResponse(BaseModel):
+    paired: bool
+    # Only present while unpaired -- once the integration has connected,
+    # the SPA no longer needs it and there's no reason to keep handing it
+    # out on every poll.
+    code: str | None = None
+
+
 class DeviceEntitySummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

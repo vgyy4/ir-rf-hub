@@ -26,6 +26,7 @@ from ir_rf_hub.security import verify_integration_token
 router = APIRouter(prefix="/api/integration", tags=["integration"])
 
 _PAIRING_TOKEN_KEY = "pairing_token"
+PAIRED_KEY = "paired"
 
 
 async def require_integration_token(
@@ -39,6 +40,17 @@ async def require_integration_token(
     expected = setting.value if setting else None
     if not expected or not verify_integration_token(presented, expected):
         raise HTTPException(401, "Invalid token")
+
+    # First successful authenticated call from the integration is what
+    # flips the App from "show the blocking pairing gate" to "usable" --
+    # see main.py's /api/pairing-status, which the SPA polls for this.
+    # Stays true forever once set: a later brief disconnect (HA restart,
+    # network blip) shouldn't suddenly lock the user back out of their
+    # own command library.
+    paired = await session.get(Setting, PAIRED_KEY)
+    if paired is None:
+        session.add(Setting(key=PAIRED_KEY, value="true"))
+        await session.commit()
 
 
 @router.get("/health", response_model=HealthResponse, dependencies=[Depends(require_integration_token)])

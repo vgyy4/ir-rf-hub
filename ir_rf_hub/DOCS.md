@@ -68,7 +68,7 @@ that physically can't do both at once.
 
 ## Connecting the companion integration
 
-Open this App's **Settings** page and copy the pairing code shown there.
+Open this App -- it will show a pairing code on a screen you can't dismiss until you've pasted it into the integration below.
 Install the **IR/RF Command Hub** integration in Home Assistant (via HACS,
 or manually), and paste the code into the single field in its setup form.
 That's it — no separate host/port entry needed, the code carries everything

@@ -46,7 +46,13 @@ per captured signal (a whole mark/space burst arrives atomically from
 ## Pairing
 
 The App generates a single opaque code (base64url JSON: host, port, a
-random bearer token) shown once on its Settings page. The integration's
-config flow has one field for it -- no separate host/port entry, and the
-App stays on Supervisor's isolated Docker network (no `host_network`,
-no zeroconf dependency for pairing).
+random bearer token). There's no Settings page -- the first time the App
+is opened and it isn't yet paired, `GET /api/pairing-status` returns
+`{paired: false, code}` and the SPA shows a non-dismissable full-screen
+gate with that code, polling the same endpoint until the integration's
+first successful `/api/integration/*` call flips a persistent `paired`
+flag (`api/rest/integration.py`), at which point the gate closes and never
+reappears (a later restart or brief disconnect doesn't re-lock the user
+out). The integration's config flow has one field for the code -- no
+separate host/port entry, and the App stays on Supervisor's isolated
+Docker network (no `host_network`, no zeroconf dependency for pairing).

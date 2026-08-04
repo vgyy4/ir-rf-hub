@@ -25,8 +25,9 @@ async def client():
 
 
 async def _token(client: httpx.AsyncClient) -> str:
-    code = (await client.get("/api/integration/pairing-code")).json()["code"]
-    return decode_pairing_code(code)["token"]
+    status = (await client.get("/api/pairing-status")).json()
+    assert status["paired"] is False
+    return decode_pairing_code(status["code"])["token"]
 
 
 async def test_integration_endpoints_reject_missing_or_wrong_token(client: httpx.AsyncClient):

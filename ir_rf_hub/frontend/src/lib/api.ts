@@ -45,6 +45,15 @@ export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>("health");
 }
 
+export interface PairingStatus {
+  paired: boolean;
+  code: string | null;
+}
+
+export function getPairingStatus(): Promise<PairingStatus> {
+  return request<PairingStatus>("pairing-status");
+}
+
 export type SignalType = "ir" | "rf";
 
 export interface DeviceEntitySummary {
@@ -71,6 +80,32 @@ export interface EspDeviceSummary {
 
 export function listDevices(): Promise<EspDeviceSummary[]> {
   return request<EspDeviceSummary[]>("devices");
+}
+
+export interface CreateDeviceRequest {
+  name: string;
+  host: string;
+  port?: number;
+  encryption_key?: string | null;
+  password?: string | null;
+}
+
+export function createDevice(payload: CreateDeviceRequest): Promise<EspDeviceSummary> {
+  return request<EspDeviceSummary>("devices", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function deleteDevice(id: string): Promise<void> {
+  return request<void>(`devices/${id}`, { method: "DELETE" });
+}
+
+export interface DiscoveredDevice {
+  name: string;
+  host: string;
+  port: number;
+}
+
+export function discoverDevices(): Promise<DiscoveredDevice[]> {
+  return request<DiscoveredDevice[]>("devices/discover");
 }
 
 const domainForType = (type: SignalType) => (type === "ir" ? "infrared" : "radio_frequency");
