@@ -1,3 +1,10 @@
+# Must be declared before the FIRST FROM in the file to be usable inside
+# any later FROM's image reference -- Docker only extends ARG scope into
+# FROM instructions for ARGs declared before the first FROM, not merely
+# before the FROM that uses them. Declaring it later (as this file
+# originally did) silently resolves to blank, which buildx then rejects.
+ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
+
 # --- stage 1: build the Svelte SPA -----------------------------------------
 # A separate, non-arch-pinned stage: the frontend build only ever needs to
 # *run* on the builder's host platform (buildx handles that automatically),
@@ -14,12 +21,11 @@ RUN npm run build
 # --- stage 2: the App image --------------------------------------------------
 # https://developers.home-assistant.io/docs/apps/configuration#app-dockerfile
 # Since Supervisor 2026.04.0, BUILD_FROM is no longer injected by the
-# builder -- the default here IS the actual base image, and build.yaml
+# builder -- the default above IS the actual base image, and build.yaml
 # (which used to map this per-arch) is deprecated and no longer read.
 # This is a plain Alpine base (not a python-flavored variant, which no
 # longer exists as a separate published image), so Python is installed
 # explicitly below.
-ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
 FROM ${BUILD_FROM}
 
 # Home Assistant base images already provide s6-overlay init.
