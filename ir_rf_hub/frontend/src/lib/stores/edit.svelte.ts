@@ -7,6 +7,7 @@ class EditWizard {
   command = $state<CommandDetail | null>(null);
   selectedDefaultDeviceId = $state<string | null>(null);
   rawTimingsText = $state("");
+  repeatCount = $state(1);
   showSaveAsNewPrompt = $state(false);
   newCommandName = $state("");
   busy = $state(false);
@@ -21,6 +22,7 @@ class EditWizard {
       this.command = await getCommand(summary.id);
       this.selectedDefaultDeviceId = this.command.default_device_id;
       this.rawTimingsText = this.command.raw_timings.join(", ");
+      this.repeatCount = this.command.repeat_count;
     } catch (e) {
       this.error = String(e);
     } finally {
@@ -73,7 +75,7 @@ class EditWizard {
     this.busy = true;
     this.error = null;
     try {
-      await updateCommand(this.command.id, { raw_timings: timings });
+      await updateCommand(this.command.id, { raw_timings: timings, repeat_count: this.repeatCount });
       this.close();
     } catch (e) {
       this.error = String(e);
@@ -102,6 +104,7 @@ class EditWizard {
         type: this.command.type,
         raw_timings: timings,
         carrier_frequency_hz: this.command.carrier_frequency_hz,
+        repeat_count: this.repeatCount,
       });
       this.close();
     } catch (e) {

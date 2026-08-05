@@ -26,6 +26,11 @@
       spellcheck="false"
     ></textarea>
 
+    <label class="mt-3 block">
+      <span class="text-surface-600-400 text-sm">Repeat count</span>
+      <input type="number" class="input mt-1 w-32" min="1" bind:value={wizard.repeatCount} />
+    </label>
+
     {#if wizard.error}<p class="text-error-500 mt-3 text-sm">{wizard.error}</p>{/if}
 
     {#if wizard.showSaveAsNewPrompt}
