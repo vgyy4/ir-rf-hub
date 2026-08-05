@@ -6,14 +6,14 @@
 # Uses Home Assistant's own official reusable actions
 # (home-assistant/builder), the same ones home-assistant/apps-example uses
 # -- not a hand-rolled buildx setup -- so this stays correct as HA's build
-# tooling evolves. On a PR, it builds (to prove the Dockerfile still works)
-# but does not push.
+# tooling evolves. Not part of branch protection's required checks (those
+# are "Backend tests" / "Frontend build & type check" in test.yaml), so
+# it only runs for real on a push to main, using exactly that push's
+# commit -- no multi-arch image build on every PR.
 name: Build and publish
 
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
   workflow_dispatch:
 
