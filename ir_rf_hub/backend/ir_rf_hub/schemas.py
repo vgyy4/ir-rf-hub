@@ -104,10 +104,43 @@ class RecordingSessionResponse(BaseModel):
     type: str
 
 
+class ShapeCandidateSchema(BaseModel):
+    """One distinct signal shape seen during a recording session, offered
+    to the user to choose from when stop_recording() couldn't resolve the
+    session to a single shape or a recognized protocol on its own -- see
+    esphome/signal_shapes.py.
+    """
+
+    timings: list[int]
+    edge_count: int
+    occurrences: int
+
+
+class DetectedProtocolSchema(BaseModel):
+    """A recognized multi-shape protocol (today: NEC-family leader +
+    repeat frame) -- both parts are saved together with no user choice
+    needed, unlike the ambiguous shape_candidates case.
+    """
+
+    name: str
+    leader_timings: list[int]
+    repeat_timings: list[int]
+
+
 class RecordingStopResponse(BaseModel):
     session_id: str
     capture_count: int
-    timings: list[int] = Field(default_factory=list)
+    # Exactly one of these three is populated, depending on what
+    # stop_recording() found among the session's captures:
+    # - timings: every capture was the same shape (the common case) --
+    #   ready to save as-is, no extra step needed.
+    # - detected_protocol: a recognized multi-shape protocol was found --
+    #   also ready to save as-is.
+    # - shape_candidates: multiple distinct shapes were captured and
+    #   neither of the above applied -- the frontend must show a picker.
+    timings: list[int] | None = None
+    detected_protocol: DetectedProtocolSchema | None = None
+    shape_candidates: list[ShapeCandidateSchema] | None = None
 
 
 class CommandSummary(BaseModel):
@@ -133,3 +166,13 @@ class CommandDetail(CommandSummary):
     raw_timings: list[int]
     carrier_frequency_hz: int
     repeat_count: int
+    # Set only for a two-shape command (see esphome/signal_shapes.py):
+    # raw_timings is the leader, fired once; repeat_timings is fired
+    # (repeat_count - 1) more times. None means a plain single-shape
+    # command -- raw_timings alone, fired repeat_count times, unchanged
+    # from before this existed.
+    repeat_timings: list[int] | None = None
+    # Informational only (e.g. "nec_leader_repeat") -- set when
+    # repeat_timings was auto-detected rather than manually chosen by the
+    # user from shape_candidates. Never read by the firing path.
+    repeat_protocol: str | None = None

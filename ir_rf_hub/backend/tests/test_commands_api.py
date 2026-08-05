@@ -182,6 +182,137 @@ async def test_candidate_devices_filters_to_transmitters_of_matching_type(
         assert [d["id"] for d in candidates] == [tx_device["id"]]
 
 
+async def test_create_and_get_command_round_trips_repeat_timings_and_protocol(client: httpx.AsyncClient):
+    created = (
+        await client.post(
+            "/api/commands",
+            json={
+                "name": "TV Power",
+                "type": "ir",
+                "raw_timings": [9000, -4500, 560, -560],
+                "repeat_timings": [9000, -2250, 560],
+                "repeat_protocol": "nec_leader_repeat",
+            },
+        )
+    ).json()
+    assert created["repeat_timings"] == [9000, -2250, 560]
+    assert created["repeat_protocol"] == "nec_leader_repeat"
+
+    detail = (await client.get(f"/api/commands/{created['id']}")).json()
+    assert detail["repeat_timings"] == [9000, -2250, 560]
+    assert detail["repeat_protocol"] == "nec_leader_repeat"
+
+
+async def test_create_command_without_repeat_timings_leaves_it_null(client: httpx.AsyncClient):
+    created = (
+        await client.post("/api/commands", json={"name": "Simple", "type": "ir", "raw_timings": [1, -1]})
+    ).json()
+    assert created["repeat_timings"] is None
+    assert created["repeat_protocol"] is None
+
+
+async def test_update_command_can_clear_repeat_timings(client: httpx.AsyncClient):
+    created = (
+        await client.post(
+            "/api/commands",
+            json={
+                "name": "Two Shape",
+                "type": "ir",
+                "raw_timings": [9000, -4500, 560, -560],
+                "repeat_timings": [9000, -2250, 560],
+            },
+        )
+    ).json()
+
+    updated = (
+        await client.put(f"/api/commands/{created['id']}", json={"repeat_timings": None, "repeat_protocol": None})
+    ).json()
+    assert updated["repeat_timings"] is None
+    assert updated["repeat_protocol"] is None
+
+
+async def test_fire_single_shape_command_sends_one_burst_repeated_n_times(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    device = (
+        await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
+    ).json()
+    command = (
+        await client.post(
+            "/api/commands",
+            json={"name": "AC On", "type": "ir", "raw_timings": [1, -1], "repeat_count": 3, "default_device_id": device["id"]},
+        )
+    ).json()
+
+    resp = await client.post(f"/api/commands/{command['id']}/fire", json={})
+    assert resp.status_code == 204
+    # Unchanged from before repeat_timings existed: one firmware call,
+    # firmware handles repeating the same burst.
+    assert len(fake_device.transmitted) == 1
+    assert fake_device.transmitted[0].timings == [1, -1]
+    assert fake_device.transmitted[0].repeat_count == 3
+
+
+async def test_fire_two_shape_command_sends_leader_once_then_repeat_shape_n_minus_one_times(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    device = (
+        await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
+    ).json()
+    command = (
+        await client.post(
+            "/api/commands",
+            json={
+                "name": "TV Power",
+                "type": "ir",
+                "raw_timings": [9000, -4500, 560, -560],
+                "repeat_timings": [9000, -2250, 560],
+                "repeat_count": 4,
+                "default_device_id": device["id"],
+            },
+        )
+    ).json()
+
+    resp = await client.post(f"/api/commands/{command['id']}/fire", json={})
+    assert resp.status_code == 204
+
+    # Exactly two firmware calls -- leader once, repeat shape (4 - 1)
+    # times -- never `raw_timings x repeat_count` AND `repeat_timings x
+    # repeat_count`, which would double the total activations.
+    assert len(fake_device.transmitted) == 2
+    assert fake_device.transmitted[0].timings == [9000, -4500, 560, -560]
+    assert fake_device.transmitted[0].repeat_count == 1
+    assert fake_device.transmitted[1].timings == [9000, -2250, 560]
+    assert fake_device.transmitted[1].repeat_count == 3
+
+
+async def test_fire_two_shape_command_with_repeat_count_one_skips_the_repeat_shape_entirely(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    device = (
+        await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
+    ).json()
+    command = (
+        await client.post(
+            "/api/commands",
+            json={
+                "name": "TV Power",
+                "type": "ir",
+                "raw_timings": [9000, -4500, 560, -560],
+                "repeat_timings": [9000, -2250, 560],
+                "repeat_count": 1,
+                "default_device_id": device["id"],
+            },
+        )
+    ).json()
+
+    resp = await client.post(f"/api/commands/{command['id']}/fire", json={})
+    assert resp.status_code == 204
+    assert len(fake_device.transmitted) == 1
+    assert fake_device.transmitted[0].timings == [9000, -4500, 560, -560]
+    assert fake_device.transmitted[0].repeat_count == 1
+
+
 async def test_delete_command(client: httpx.AsyncClient):
     created = (
         await client.post("/api/commands", json={"name": "Delete Me", "type": "rf", "raw_timings": [1, -1]})

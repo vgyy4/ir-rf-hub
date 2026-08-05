@@ -30,6 +30,10 @@ class CommandCreateRequest(BaseModel):
     # candidate-devices filtering for why: default_device_id must point at
     # a device with a tx-role entity of the matching domain.
     recorded_from_device_id: str | None = None
+    # Set only for a two-shape command -- see fire_command()'s firing
+    # semantics and esphome/signal_shapes.py.
+    repeat_timings: list[int] | None = None
+    repeat_protocol: str | None = None
 
 
 class CommandUpdateRequest(BaseModel):
@@ -38,6 +42,8 @@ class CommandUpdateRequest(BaseModel):
     carrier_frequency_hz: int | None = None
     repeat_count: int | None = None
     default_device_id: str | None = None
+    repeat_timings: list[int] | None = None
+    repeat_protocol: str | None = None
 
 
 class FireRequest(BaseModel):
@@ -96,6 +102,8 @@ async def create_command(payload: CommandCreateRequest, session: AsyncSession = 
         repeat_count=payload.repeat_count,
         default_device_id=payload.default_device_id,
         recorded_from_device_id=payload.recorded_from_device_id,
+        repeat_timings=payload.repeat_timings,
+        repeat_protocol=payload.repeat_protocol,
     )
     session.add(command)
     await session.commit()
@@ -193,13 +201,41 @@ async def fire_command(command_id: str, payload: FireRequest, session: AsyncSess
 
     try:
         device_session = await device_manager.connect(session, device)
-        await device_session.transmit(
-            domain=domain,
-            tx_key=entity.esphome_key,
-            timings=command.raw_timings,
-            carrier_frequency_hz=command.carrier_frequency_hz,
-            repeat_count=command.repeat_count,
-        )
+        if command.repeat_timings is None:
+            # Plain single-shape command -- one firmware-level burst,
+            # repeated repeat_count times. Unchanged from before
+            # repeat_timings existed.
+            await device_session.transmit(
+                domain=domain,
+                tx_key=entity.esphome_key,
+                timings=command.raw_timings,
+                carrier_frequency_hz=command.carrier_frequency_hz,
+                repeat_count=command.repeat_count,
+            )
+        else:
+            # Two-shape command (see esphome/signal_shapes.py): the
+            # leader fires exactly once, then the repeat shape fires
+            # (repeat_count - 1) more times -- mirroring a real remote
+            # (send the full frame once, then a distinct repeat signal
+            # while held). Deliberately NOT `raw_timings x repeat_count`
+            # followed by `repeat_timings x repeat_count` -- that would
+            # double the total number of activations instead of just
+            # picking which shape represents each one.
+            await device_session.transmit(
+                domain=domain,
+                tx_key=entity.esphome_key,
+                timings=command.raw_timings,
+                carrier_frequency_hz=command.carrier_frequency_hz,
+                repeat_count=1,
+            )
+            if command.repeat_count > 1:
+                await device_session.transmit(
+                    domain=domain,
+                    tx_key=entity.esphome_key,
+                    timings=command.repeat_timings,
+                    carrier_frequency_hz=command.carrier_frequency_hz,
+                    repeat_count=command.repeat_count - 1,
+                )
     except DeviceUnreachableError as exc:
         raise HTTPException(502, f"Could not reach device: {exc}") from exc
     except DeviceBusyTimeoutError as exc:
