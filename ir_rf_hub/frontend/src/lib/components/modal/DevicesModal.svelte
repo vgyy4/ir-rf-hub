@@ -9,7 +9,7 @@
   import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import CheckIcon from "@lucide/svelte/icons/check";
-  import PlugIcon from "@lucide/svelte/icons/plug";
+  import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 
   // Matches DevicePicker.svelte's convention for "reachable enough to
   // treat as online" -- anything mid-transmit/receive still counts.
@@ -249,7 +249,7 @@
             disabled={testingDeviceId === device.id}
             onclick={() => handleTest(device.id)}
           >
-            <PlugIcon class={["size-4", testingDeviceId === device.id && "animate-pulse"]} />
+            <RefreshCwIcon class={["size-4", testingDeviceId === device.id && "animate-spin"]} />
           </button>
           <button
             type="button"
