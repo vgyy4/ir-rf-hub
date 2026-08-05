@@ -3,7 +3,13 @@
   import Modal from "./modal/Modal.svelte";
   import DevicePicker from "./DevicePicker.svelte";
   import { commandsStore } from "../stores/commands.svelte";
-  import { candidateDevicesForCommand, fireCommand, type CommandSummary, type EspDeviceSummary } from "../api";
+  import {
+    candidateDevicesForCommand,
+    deleteCommand,
+    fireCommand,
+    type CommandSummary,
+    type EspDeviceSummary,
+  } from "../api";
   import InboxIcon from "@lucide/svelte/icons/inbox";
 
   interface Props {
@@ -15,6 +21,30 @@
   let firePickerCommand = $state<CommandSummary | null>(null);
   let firePickerDevices = $state<EspDeviceSummary[]>([]);
   let fireError = $state<string | null>(null);
+
+  let deleteConfirmCommand = $state<CommandSummary | null>(null);
+  let deleteBusy = $state(false);
+  let deleteError = $state<string | null>(null);
+
+  function handleDeleteRequest(command: CommandSummary) {
+    deleteError = null;
+    deleteConfirmCommand = command;
+  }
+
+  async function handleDeleteConfirmed() {
+    if (!deleteConfirmCommand) return;
+    deleteBusy = true;
+    deleteError = null;
+    try {
+      await deleteCommand(deleteConfirmCommand.id);
+      await commandsStore.refresh();
+      deleteConfirmCommand = null;
+    } catch (e) {
+      deleteError = String(e);
+    } finally {
+      deleteBusy = false;
+    }
+  }
 
   async function handleFire(command: CommandSummary) {
     fireError = null;
@@ -56,7 +86,7 @@
 {:else}
   <ul class="flex flex-col gap-2">
     {#each commandsStore.items as command (command.id)}
-      <CommandRow {command} onFire={handleFire} {onEdit} />
+      <CommandRow {command} onFire={handleFire} {onEdit} onDelete={handleDeleteRequest} />
     {/each}
   </ul>
 {/if}
@@ -69,4 +99,28 @@
     Choose the device to transmit "{firePickerCommand?.name}" from.
   </p>
   <DevicePicker devices={firePickerDevices} selectedId={null} onSelect={handleDevicePicked} />
+</Modal>
+
+<Modal open={deleteConfirmCommand !== null} onClose={() => (deleteConfirmCommand = null)}>
+  <h2 class="h4 mb-1">Delete "{deleteConfirmCommand?.name}"?</h2>
+  <p class="text-surface-600-400 mb-4 text-sm">This can't be undone -- you'll need to re-record it to get it back.</p>
+  {#if deleteError}<p class="text-error-500 mb-2 text-sm">{deleteError}</p>{/if}
+  <div class="flex justify-end gap-2">
+    <button
+      type="button"
+      class="btn preset-tonal"
+      disabled={deleteBusy}
+      onclick={() => (deleteConfirmCommand = null)}
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      class="btn preset-filled-error-500"
+      disabled={deleteBusy}
+      onclick={handleDeleteConfirmed}
+    >
+      Delete
+    </button>
+  </div>
 </Modal>
