@@ -1,6 +1,7 @@
 <script lang="ts">
   import Modal from "./modal/Modal.svelte";
   import { getPairingStatus } from "../api";
+  import { copyElementText } from "../clipboard";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import CheckIcon from "@lucide/svelte/icons/check";
   import LinkIcon from "@lucide/svelte/icons/link-2";
@@ -17,49 +18,9 @@
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
   async function copyCode() {
-    if (!(await copyWithClipboardApi(code)) && !copyWithSelectionExecCommand()) {
-      return;
-    }
+    if (!codeEl || !(await copyElementText(codeEl, code))) return;
     copied = true;
     setTimeout(() => (copied = false), 2000);
-  }
-
-  // Ingress typically serves the App over plain http (not https/localhost),
-  // which is not a "secure context" -- `navigator.clipboard` is undefined
-  // there, so calling it directly throws and the button silently does
-  // nothing. Fall back to the legacy execCommand technique in that case.
-  async function copyWithClipboardApi(text: string): Promise<boolean> {
-    if (!navigator.clipboard) return false;
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  // Selects the visible <code> element's text and copies via the DOM
-  // Selection, rather than creating+focusing a detached <textarea>. The
-  // modal's Dialog runs a focus trap that lives inside its own portal --
-  // focusing an element appended to document.body (outside that subtree)
-  // gets immediately yanked back inside the trap, so execCommand("copy")
-  // ends up copying nothing (or stale content) while still reporting
-  // success. Selecting existing in-modal content sidesteps that.
-  function copyWithSelectionExecCommand(): boolean {
-    if (!codeEl) return false;
-    const selection = window.getSelection();
-    if (!selection) return false;
-    const range = document.createRange();
-    range.selectNodeContents(codeEl);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    try {
-      return document.execCommand("copy");
-    } catch {
-      return false;
-    } finally {
-      selection.removeAllRanges();
-    }
   }
 
   $effect(() => {
