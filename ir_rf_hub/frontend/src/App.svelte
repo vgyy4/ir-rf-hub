@@ -91,11 +91,12 @@
       <div class="flex items-center gap-2">
         <button
           type="button"
-          class="btn-icon preset-tonal"
+          class="btn preset-tonal"
           aria-label="Manage ESPHome devices"
           onclick={() => (devicesModalOpen = true)}
         >
           <RouterIcon class="size-4" />
+          Devices
         </button>
         <button type="button" class="btn preset-filled-primary-500" onclick={openRecordModal}>
           <PlusIcon class="size-4" />
