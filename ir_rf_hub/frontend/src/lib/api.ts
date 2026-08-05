@@ -98,6 +98,14 @@ export function deleteDevice(id: string): Promise<void> {
   return request<void>(`devices/${id}`, { method: "DELETE" });
 }
 
+// Forces a fresh reconnect (dropping any cached session first) and
+// re-discovers entities -- what to call after e.g. reflashing an ESP
+// with new IR/RF hardware, rather than waiting for the next incidental
+// use of the device to happen to notice.
+export function testDevice(id: string): Promise<EspDeviceSummary> {
+  return request<EspDeviceSummary>(`devices/${id}/test`, { method: "POST" });
+}
+
 export interface DiscoveredDevice {
   name: string;
   host: string;
