@@ -1,7 +1,7 @@
 <script lang="ts">
   import Modal from "./Modal.svelte";
   import { devicesStore } from "../../stores/devices.svelte";
-  import { createDevice, deleteDevice, discoverDevices, type DiscoveredDevice } from "../../api";
+  import { createDevice, deleteDevice, discoverDevices, testDevice, type DiscoveredDevice } from "../../api";
   import { copyElementText } from "../../clipboard";
   import PlusIcon from "@lucide/svelte/icons/plus";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
@@ -9,6 +9,11 @@
   import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import CheckIcon from "@lucide/svelte/icons/check";
+  import PlugIcon from "@lucide/svelte/icons/plug";
+
+  // Matches DevicePicker.svelte's convention for "reachable enough to
+  // treat as online" -- anything mid-transmit/receive still counts.
+  const ONLINE_STATES = new Set(["idle", "rx_active", "tx_active", "rx_settling", "tx_settling"]);
 
   interface Props {
     open: boolean;
@@ -77,7 +82,12 @@
 
   function handleAddClick() {
     if (!name.trim() || !host.trim()) return;
-    if (!hideStaticIpTip && staticIpYaml) {
+    // Gated regardless of whether the host is a literal IP -- devices
+    // picked from "Found on your network" are pre-filled with a .local
+    // hostname, not an IP, and that case still deserves a (lighter)
+    // recommendation: see the gate's template for the staticIpYaml
+    // present/absent split.
+    if (!hideStaticIpTip) {
       showStaticIpGate = true;
       return;
     }
@@ -108,6 +118,7 @@
       // next time the menu opens.
       resetForm();
       discovered = [];
+      testError = null;
     }
   });
 
@@ -164,6 +175,26 @@
     await deleteDevice(id);
     await devicesStore.refresh();
   }
+
+  let testingDeviceId = $state<string | null>(null);
+  let testError = $state<{ id: string; message: string } | null>(null);
+
+  // Forces a fresh reconnect + entity re-scan on demand -- what to use
+  // right after e.g. reflashing an ESP with new IR/RF hardware, rather
+  // than waiting for the App to happen to notice on its own (it only
+  // reconnects at startup or when something else needs the device).
+  async function handleTest(id: string) {
+    testingDeviceId = id;
+    testError = null;
+    try {
+      await testDevice(id);
+      await devicesStore.refresh();
+    } catch (e) {
+      testError = { id, message: String(e) };
+    } finally {
+      testingDeviceId = null;
+    }
+  }
 </script>
 
 <Modal {open} {onClose}>
@@ -211,16 +242,39 @@
               .length === 1
               ? "y"
               : "ies"}
+            &middot;
+            <span
+              class={[
+                "tracking-wide uppercase",
+                ONLINE_STATES.has(device.connection_state) ? "text-success-500" : "text-surface-500",
+              ]}
+            >
+              {device.connection_state}
+            </span>
           </p>
+          {#if testError?.id === device.id}
+            <p class="text-error-500 mt-1 text-xs">{testError.message}</p>
+          {/if}
         </div>
-        <button
-          type="button"
-          class="btn-icon hover:preset-tonal-error shrink-0"
-          aria-label="Remove {device.name}"
-          onclick={() => handleDelete(device.id)}
-        >
-          <Trash2Icon class="size-4" />
-        </button>
+        <div class="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            class="btn-icon preset-tonal"
+            aria-label="Test connection to {device.name}"
+            disabled={testingDeviceId === device.id}
+            onclick={() => handleTest(device.id)}
+          >
+            <PlugIcon class={["size-4", testingDeviceId === device.id && "animate-pulse"]} />
+          </button>
+          <button
+            type="button"
+            class="btn-icon hover:preset-tonal-error"
+            aria-label="Remove {device.name}"
+            onclick={() => handleDelete(device.id)}
+          >
+            <Trash2Icon class="size-4" />
+          </button>
+        </div>
       </li>
     {:else}
       <p class="text-surface-500 text-sm italic">No devices added yet.</p>
@@ -233,24 +287,35 @@
         <TriangleAlertIcon class="text-warning-500 size-5 shrink-0" />
         <h3 class="font-medium">Give this ESP a static IP</h3>
       </div>
-      <p class="text-surface-600-400 text-xs">
-        Without one, {host.trim()} can change after a reboot or router restart, and the App will lose this
-        device until you update its host manually. Add this to the <code>wifi:</code> section of its ESPHome
-        YAML -- <strong>double-check the gateway and subnet against your own router</strong>, these are just
-        the most common home-network defaults, not read from your network:
-      </p>
-      <div class="border-surface-300-700 bg-surface-50-950 overflow-x-auto rounded-lg border p-3">
-        <pre bind:this={yamlEl} class="font-mono text-xs whitespace-pre">{staticIpYaml}</pre>
-      </div>
-      <button type="button" class="btn preset-tonal btn-sm w-full" onclick={copyYaml}>
-        {#if yamlCopied}
-          <CheckIcon class="size-4" />
-          Copied
-        {:else}
-          <CopyIcon class="size-4" />
-          Copy YAML
-        {/if}
-      </button>
+      {#if staticIpYaml}
+        <p class="text-surface-600-400 text-xs">
+          Without one, {host.trim()} can change after a reboot or router restart, and the App will lose this
+          device until you update its host manually. Add this to the <code>wifi:</code> section of its ESPHome
+          YAML -- <strong>double-check the gateway and subnet against your own router</strong>, these are just
+          the most common home-network defaults, not read from your network:
+        </p>
+        <div class="border-surface-300-700 bg-surface-50-950 overflow-x-auto rounded-lg border p-3">
+          <pre bind:this={yamlEl} class="font-mono text-xs whitespace-pre">{staticIpYaml}</pre>
+        </div>
+        <button type="button" class="btn preset-tonal btn-sm w-full" onclick={copyYaml}>
+          {#if yamlCopied}
+            <CheckIcon class="size-4" />
+            Copied
+          {:else}
+            <CopyIcon class="size-4" />
+            Copy YAML
+          {/if}
+        </button>
+      {:else}
+        <p class="text-surface-600-400 text-xs">
+          {host.trim()} is a hostname, not an IP -- this App can't derive a gateway/subnet from it to show
+          you a ready-made YAML block. Hostname (mDNS) resolution isn't always reliable for this App though,
+          so for the most robust setup: find this ESP's actual IP address (check your router's device list,
+          or the ESP's own logs) and give it a static IP -- either a DHCP reservation on your router, or a
+          <code>manual_ip:</code> block under <code>wifi:</code> in its ESPHome YAML -- then use that IP
+          address here instead of the hostname.
+        </p>
+      {/if}
       <label class="flex items-center gap-1.5 text-xs">
         <input
           type="checkbox"
