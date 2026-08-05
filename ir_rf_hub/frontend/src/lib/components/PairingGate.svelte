@@ -86,12 +86,15 @@
     <div class="space-y-1.5">
       <h2 class="h3">Connect the companion integration</h2>
       <p class="text-surface-600-400 text-sm">
-        Install the <strong>IR/RF Command Hub</strong> integration in Home Assistant, and paste this
-        code into its setup form. This screen will move on automatically once you're paired.
+        Install the <strong>IR/RF Command Hub</strong> integration in Home Assistant. It should find this
+        App on its own -- check Settings &rarr; Devices &amp; services for a "Discovered" card and confirm
+        it. This screen will move on automatically once you're paired.
       </p>
     </div>
 
     <div class="w-full space-y-2">
+      <p class="text-surface-500 text-xs">Didn't get a "Discovered" card? Paste this code into the
+        integration's setup form manually:</p>
       <div
         class="border-surface-300-700 bg-surface-50-950 w-full overflow-x-auto rounded-lg border p-4 text-left"
       >
