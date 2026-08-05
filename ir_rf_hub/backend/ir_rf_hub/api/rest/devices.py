@@ -10,6 +10,7 @@ from ir_rf_hub.db.session import get_session
 from ir_rf_hub.esphome.connection import DeviceUnreachableError
 from ir_rf_hub.esphome.device_manager import device_manager
 from ir_rf_hub.esphome.discovery import discover_esphome_devices
+from ir_rf_hub.esphome.integration_discovery import get_reported_devices
 from ir_rf_hub.events import Event, event_bus
 from ir_rf_hub.schemas import (
     DeviceEntitySummary,
@@ -128,8 +129,17 @@ async def test_device(device_id: str, session: AsyncSession = Depends(get_sessio
 
 @router.get("/discover", response_model=list[DiscoveredDeviceSchema])
 async def discover_devices(session: AsyncSession = Depends(get_session)) -> list[DiscoveredDeviceSchema]:
+    """Merges two sources: the App's own local mDNS browse (works if
+    Supervisor's Multicast plugin reaches this container -- not
+    guaranteed for every install) and whatever the companion integration
+    most recently reported (reliable -- it browses from inside Home
+    Assistant Core, see integration_discovery.py). Local results win on
+    a host collision since they're fresher (this request just ran it).
+    """
     existing_hosts = {d.host for d in (await session.execute(select(EspDevice))).scalars().all()}
-    found = await discover_esphome_devices()
-    return [
-        DiscoveredDeviceSchema(name=d.name, host=d.host, port=d.port) for d in found if d.host not in existing_hosts
-    ]
+    local = await discover_esphome_devices()
+
+    by_host = {d.host: DiscoveredDeviceSchema(name=d.name, host=d.host, port=d.port) for d in get_reported_devices()}
+    by_host.update({d.host: DiscoveredDeviceSchema(name=d.name, host=d.host, port=d.port) for d in local})
+
+    return [d for d in by_host.values() if d.host not in existing_hosts]

@@ -20,7 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ir_rf_hub.db.models import Command, Setting
 from ir_rf_hub.db.session import get_session
-from ir_rf_hub.schemas import CommandSummary, HealthResponse
+from ir_rf_hub.esphome.integration_discovery import set_reported_devices
+from ir_rf_hub.schemas import CommandSummary, DiscoveredDeviceSchema, HealthResponse
 from ir_rf_hub.security import verify_integration_token
 
 router = APIRouter(prefix="/api/integration", tags=["integration"])
@@ -76,3 +77,13 @@ async def integration_fire_command(command_id: str, session: AsyncSession = Depe
     from ir_rf_hub.api.rest.commands import FireRequest, fire_command
 
     await fire_command(command_id, FireRequest(device_id=None), session)
+
+
+@router.post("/discovered-devices", status_code=204, dependencies=[Depends(require_integration_token)])
+async def integration_report_discovered_devices(devices: list[DiscoveredDeviceSchema]) -> None:
+    """The integration's own periodic zeroconf browse (reliable -- it
+    runs inside Home Assistant Core, not this container) reports what it
+    finds here. GET /api/devices/discover merges this with the App's own
+    local mDNS attempt -- see esphome/integration_discovery.py.
+    """
+    set_reported_devices(devices)
