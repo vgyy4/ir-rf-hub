@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import socket
 from collections.abc import AsyncIterator
@@ -27,6 +28,7 @@ from ir_rf_hub.db.models import Setting
 from ir_rf_hub.esphome.device_manager import device_manager
 from ir_rf_hub.schemas import HealthResponse, PairingStatusResponse
 from ir_rf_hub.security import encode_pairing_code, generate_pairing_token
+from ir_rf_hub.supervisor_discovery import announce_pairing
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,23 @@ _STATIC_DIR = _PACKAGE_DIR / "static"
 
 _PAIRING_TOKEN_KEY = "pairing_token"
 _INTEGRATION_API_PORT = 8099  # single port serves both Ingress UI and the integration API
+_DISCOVERY_REANNOUNCE_INTERVAL_S = 60
+
+
+def _pairing_host() -> str:
+    # The container's own hostname *is* the Supervisor-network DNS name
+    # other add-ons/integrations use to reach it -- Supervisor sets it
+    # when creating the container. Hardcoding `local-ir-rf-hub` only
+    # works for the special "local" add-ons folder; installs from this
+    # repo's custom repository (see repository.yaml) get a different,
+    # repo-hash-based hostname, so that assumption silently broke pairing.
+    return socket.gethostname()
+
+
+async def _is_paired() -> bool:
+    async with session_scope() as session:
+        paired_row = await session.get(Setting, PAIRED_KEY)
+    return paired_row is not None and paired_row.value == "true"
 
 
 def _run_migrations() -> None:
@@ -65,6 +84,20 @@ async def _get_or_create_pairing_token() -> str:
         return token
 
 
+async def _announce_pairing_until_paired(token: str) -> None:
+    """Re-announces on an interval rather than once: Supervisor's
+    Discovery API doesn't persist across a Supervisor/Core restart the
+    way our own DB-backed pairing token does, and the companion
+    integration might not even be installed yet the first few times this
+    runs. Stops for good once paired -- the manual code flow (still
+    served by /api/pairing-status) remains the fallback if this never
+    gets picked up (e.g. the App isn't running under Supervisor at all).
+    """
+    while not await _is_paired():
+        await announce_pairing(host=_pairing_host(), port=_INTEGRATION_API_PORT, token=token)
+        await asyncio.sleep(_DISCOVERY_REANNOUNCE_INTERVAL_S)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logging.basicConfig(level=settings.log_level.upper())
@@ -73,8 +106,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # can't nest inside the loop already running this lifespan -- give it a
     # thread with no running loop of its own.
     await asyncio.to_thread(_run_migrations)
-    await _get_or_create_pairing_token()
+    token = await _get_or_create_pairing_token()
+    announce_task = asyncio.create_task(_announce_pairing_until_paired(token))
     yield
+    announce_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await announce_task
     await device_manager.disconnect_all()
     logger.info("IR/RF Command Hub backend shutting down")
 
@@ -93,20 +130,17 @@ def create_app() -> FastAPI:
         all. There's deliberately no "Settings" page this lives on --
         this is the only place the pairing code is ever shown, and only
         for as long as nothing has paired yet.
+
+        The code here is the manual-pairing fallback -- the primary path
+        is the companion integration finding the App on its own via
+        _announce_pairing_until_paired()'s Supervisor Discovery push,
+        which needs no code copied at all. See config_flow.py.
         """
-        async with session_scope() as session:
-            paired_row = await session.get(Setting, PAIRED_KEY)
-        if paired_row is not None and paired_row.value == "true":
+        if await _is_paired():
             return PairingStatusResponse(paired=True, code=None)
 
         token = await _get_or_create_pairing_token()
-        # The container's own hostname *is* the Supervisor-network DNS name
-        # other add-ons/integrations use to reach it -- Supervisor sets it
-        # when creating the container. Hardcoding `local-ir-rf-hub` only
-        # works for the special "local" add-ons folder; installs from this
-        # repo's custom repository (see repository.yaml) get a different,
-        # repo-hash-based hostname, so that assumption silently broke pairing.
-        code = encode_pairing_code(host=socket.gethostname(), port=_INTEGRATION_API_PORT, token=token)
+        code = encode_pairing_code(host=_pairing_host(), port=_INTEGRATION_API_PORT, token=token)
         return PairingStatusResponse(paired=False, code=code)
 
     app.include_router(devices_router)
