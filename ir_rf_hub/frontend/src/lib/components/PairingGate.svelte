@@ -16,9 +16,42 @@
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
   async function copyCode() {
-    await navigator.clipboard.writeText(code);
+    if (!(await copyWithClipboardApi(code)) && !copyWithExecCommand(code)) {
+      return;
+    }
     copied = true;
     setTimeout(() => (copied = false), 2000);
+  }
+
+  // Ingress typically serves the App over plain http (not https/localhost),
+  // which is not a "secure context" -- `navigator.clipboard` is undefined
+  // there, so calling it directly throws and the button silently does
+  // nothing. Fall back to the old execCommand technique in that case.
+  async function copyWithClipboardApi(text: string): Promise<boolean> {
+    if (!navigator.clipboard) return false;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function copyWithExecCommand(text: string): boolean {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      return document.execCommand("copy");
+    } catch {
+      return false;
+    } finally {
+      document.body.removeChild(textarea);
+    }
   }
 
   $effect(() => {
