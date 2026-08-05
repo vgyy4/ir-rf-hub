@@ -20,10 +20,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ir_rf_hub.db.models import Command, Setting
+from ir_rf_hub.api.rest.commands import FireRequest, _candidate_tx_device_ids, _domain_for_type, fire_command
+from ir_rf_hub.db.models import Command, EspDevice, Setting
 from ir_rf_hub.db.session import get_session
 from ir_rf_hub.esphome.integration_discovery import set_reported_devices
-from ir_rf_hub.schemas import CommandSummary, DiscoveredDeviceSchema, HealthResponse
+from ir_rf_hub.schemas import CommandSummary, DeviceOptionSchema, DiscoveredDeviceSchema, HealthResponse
 from ir_rf_hub.security import verify_integration_token
 
 logger = logging.getLogger(__name__)
@@ -76,11 +77,44 @@ async def integration_list_commands(session: AsyncSession = Depends(get_session)
 @router.post(
     "/commands/{command_id}/fire", status_code=204, dependencies=[Depends(require_integration_token)]
 )
-async def integration_fire_command(command_id: str, session: AsyncSession = Depends(get_session)) -> None:
+async def integration_fire_command(
+    command_id: str, payload: FireRequest | None = None, session: AsyncSession = Depends(get_session)
+) -> None:
     # Delegates to the same fire logic the SPA uses -- see commands.py.
-    from ir_rf_hub.api.rest.commands import FireRequest, fire_command
+    # payload is optional: a button/switch press with no default device
+    # set posts an empty body, relying on fire_command's own single-
+    # candidate fallback; the select entity (device choice made
+    # explicit) posts {"device_id": ...}.
+    await fire_command(command_id, payload or FireRequest(device_id=None), session)
 
-    await fire_command(command_id, FireRequest(device_id=None), session)
+
+@router.get(
+    "/commands/{command_id}/candidate-devices",
+    response_model=list[DeviceOptionSchema],
+    dependencies=[Depends(require_integration_token)],
+)
+async def integration_candidate_devices(
+    command_id: str, session: AsyncSession = Depends(get_session)
+) -> list[DeviceOptionSchema]:
+    """Backs the companion integration's per-command select entity --
+    which ESP devices could transmit this command, so the user can
+    choose one when building an automation/script/scene (or directly
+    from a dashboard card), not just from the App's own UI. See
+    commands.py's candidate_devices for the App-UI equivalent this
+    mirrors (that one returns full EspDeviceSummary objects for a richer
+    picker; this just needs id+name for a select dropdown).
+    """
+    command = await session.get(Command, command_id)
+    if command is None:
+        raise HTTPException(404, "Command not found")
+
+    domain = _domain_for_type(command.type.value)
+    device_ids = await _candidate_tx_device_ids(domain, session)
+    if not device_ids:
+        return []
+
+    result = await session.execute(select(EspDevice.id, EspDevice.name).where(EspDevice.id.in_(device_ids)))
+    return [DeviceOptionSchema(id=device_id, name=name) for device_id, name in result.all()]
 
 
 @router.post("/discovered-devices", status_code=204, dependencies=[Depends(require_integration_token)])
