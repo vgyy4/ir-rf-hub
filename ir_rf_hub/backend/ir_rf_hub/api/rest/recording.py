@@ -100,11 +100,11 @@ async def stop_recording(session_id: str) -> RecordingStopResponse:
         raise HTTPException(404, str(exc)) from exc
     _session_devices.pop(session_id, None)
 
-    if finished.latest_timings is None:
+    if finished.best_timings is None:
         raise HTTPException(422, "No signal was captured during this recording")
 
     return RecordingStopResponse(
-        session_id=session_id, capture_count=finished.capture_count, timings=finished.latest_timings
+        session_id=session_id, capture_count=finished.capture_count, timings=finished.best_timings
     )
 
 
