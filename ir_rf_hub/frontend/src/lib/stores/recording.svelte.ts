@@ -2,11 +2,13 @@ import {
   clearRecording,
   createCommand,
   discardRecording,
+  receiverFrequencyHz,
   startRecording,
   stopRecording,
   type CommandDetail,
   type SignalType,
 } from "../api";
+import { devicesStore } from "./devices.svelte";
 import { connectRecordingSocket } from "../ws";
 
 export type RecordStep = "closed" | "choose-type" | "choose-device" | "recording" | "name";
@@ -70,6 +72,7 @@ class RecordingWizard {
       this.sessionId = resp.session_id;
       this.captures = [];
       this.finalTimings = null;
+      this.carrierFrequencyHz = receiverFrequencyHz(devicesStore.items, this.deviceId, this.type);
       this.step = "recording";
       this.unsubscribeWs = connectRecordingSocket(resp.session_id, (timings) => {
         this.captures = [...this.captures, timings];
