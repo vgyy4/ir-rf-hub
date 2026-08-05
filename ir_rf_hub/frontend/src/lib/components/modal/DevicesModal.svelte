@@ -6,7 +6,6 @@
   import PlusIcon from "@lucide/svelte/icons/plus";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import RadarIcon from "@lucide/svelte/icons/radar";
-  import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import CheckIcon from "@lucide/svelte/icons/check";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
@@ -23,7 +22,6 @@
   let { open, onClose }: Props = $props();
 
   let showAddForm = $state(false);
-  let showStaticIpGate = $state(false);
   let name = $state("");
   let host = $state("");
   let port = $state(6053);
@@ -32,6 +30,13 @@
   let error = $state<string | null>(null);
   let discovered = $state<DiscoveredDevice[]>([]);
   let discovering = $state(false);
+
+  // Set right after a device is successfully added, and shown once as a
+  // tip -- not gating the Add itself (that was an extra click on every
+  // single add, forever) and not repeated every time the menu reopens
+  // (that kept nagging about devices you'd already sorted out). Cleared
+  // on dismiss, on starting another add, or on closing the modal.
+  let justAdded = $state<{ name: string; host: string } | null>(null);
 
   function ipv4Octets(value: string): number[] | null {
     const parts = value.trim().split(".");
@@ -42,18 +47,20 @@
   }
 
   // Neither the App nor the browser can see the user's actual router
-  // config -- gateway-at-.1 and a /24 subnet are just the overwhelming
-  // convention for home networks, not something read from the network.
-  // Only offered when the host is a literal IPv4 address (a .local
-  // hostname has no IP to derive a gateway/subnet from).
-  let staticIpYaml = $derived.by(() => {
-    const octets = ipv4Octets(host);
+  // config, so this is only ever a generic suggestion -- gateway-at-.1
+  // and a /24 subnet are just the overwhelming convention for home
+  // networks, not something read from the network. Only computable when
+  // the host is a literal IPv4 address (a .local hostname has no IP to
+  // derive a gateway/subnet from).
+  let justAddedYaml = $derived.by(() => {
+    if (!justAdded) return null;
+    const octets = ipv4Octets(justAdded.host);
     if (!octets) return null;
     const gateway = `${octets[0]}.${octets[1]}.${octets[2]}.1`;
     return (
       `wifi:\n` +
       `  manual_ip:\n` +
-      `    static_ip: ${host.trim()}\n` +
+      `    static_ip: ${justAdded.host}\n` +
       `    gateway: ${gateway}\n` +
       `    subnet: 255.255.255.0`
     );
@@ -63,28 +70,9 @@
   let yamlCopied = $state(false);
 
   async function copyYaml() {
-    if (!yamlEl || !staticIpYaml || !(await copyElementText(yamlEl, staticIpYaml))) return;
+    if (!yamlEl || !justAddedYaml || !(await copyElementText(yamlEl, justAddedYaml))) return;
     yamlCopied = true;
     setTimeout(() => (yamlCopied = false), 2000);
-  }
-
-  function handleAddClick() {
-    if (!name.trim() || !host.trim()) return;
-    // Always gated, regardless of whether the host is a literal IP --
-    // devices picked from "Found on your network" are pre-filled with a
-    // .local hostname, not an IP, and that case still deserves a
-    // (lighter) recommendation: see the gate's template for the
-    // staticIpYaml present/absent split.
-    showStaticIpGate = true;
-  }
-
-  function backFromGate() {
-    showStaticIpGate = false;
-  }
-
-  async function confirmFromGate() {
-    showStaticIpGate = false;
-    await handleAdd();
   }
 
   $effect(() => {
@@ -103,6 +91,7 @@
       resetForm();
       discovered = [];
       testError = null;
+      justAdded = null;
     }
   });
 
@@ -123,6 +112,7 @@
     port = d.port;
     showAddForm = true;
     discovered = [];
+    justAdded = null;
   }
 
   function resetForm() {
@@ -131,7 +121,6 @@
     port = 6053;
     encryptionKey = "";
     showAddForm = false;
-    showStaticIpGate = false;
     error = null;
   }
 
@@ -140,12 +129,14 @@
     busy = true;
     error = null;
     try {
-      await createDevice({
+      const created = await createDevice({
         name: name.trim(),
         host: host.trim(),
         port,
         encryption_key: encryptionKey.trim() || null,
       });
+      justAdded = { name: created.name, host: created.host };
+      yamlCopied = false;
       resetForm();
       await devicesStore.refresh();
     } catch (e) {
@@ -210,11 +201,40 @@
     </div>
   {/if}
 
-  {#if devicesStore.items.length > 0}
-    <p class="text-surface-500 mb-2 text-xs">
-      Tip: give these ESPs a static IP (a router DHCP reservation, or <code>manual_ip:</code> in their
-      ESPHome YAML) so the App doesn't lose them after a reboot.
-    </p>
+  {#if justAdded}
+    <div class="card preset-tonal-primary mb-3 space-y-2 p-3 text-xs">
+      <p class="font-medium">{justAdded.name} added.</p>
+      {#if justAddedYaml}
+        <p>
+          If you haven't already, it's worth giving it a static IP so the App doesn't lose it after a
+          reboot or router restart. Add this to the <code>wifi:</code> section of its ESPHome YAML --
+          double-check the gateway and subnet against your own router, these are just the most common
+          home-network defaults, not read from your network:
+        </p>
+        <div class="border-surface-300-700 bg-surface-50-950 overflow-x-auto rounded-lg border p-3">
+          <pre bind:this={yamlEl} class="font-mono text-xs whitespace-pre">{justAddedYaml}</pre>
+        </div>
+        <button type="button" class="btn preset-tonal btn-sm w-full" onclick={copyYaml}>
+          {#if yamlCopied}
+            <CheckIcon class="size-4" />
+            Copied
+          {:else}
+            <CopyIcon class="size-4" />
+            Copy YAML
+          {/if}
+        </button>
+      {:else}
+        <p>
+          If you haven't already, it's worth giving {justAdded.host} an actual static IP for the most
+          reliable setup -- either a DHCP reservation on your router, or a <code>manual_ip:</code> block
+          under <code>wifi:</code> in its ESPHome YAML -- since hostname (mDNS) resolution isn't always
+          reliable for this App.
+        </p>
+      {/if}
+      <button type="button" class="btn preset-tonal btn-sm w-full" onclick={() => (justAdded = null)}>
+        Dismiss
+      </button>
+    </div>
   {/if}
 
   <ul class="mb-3 flex max-h-64 flex-col gap-2 overflow-y-auto">
@@ -266,50 +286,7 @@
     {/each}
   </ul>
 
-  {#if showStaticIpGate}
-    <div class="card preset-filled-surface-100-900 space-y-3 p-3">
-      <div class="flex items-center gap-2">
-        <TriangleAlertIcon class="text-warning-500 size-5 shrink-0" />
-        <h3 class="font-medium">Give this ESP a static IP</h3>
-      </div>
-      {#if staticIpYaml}
-        <p class="text-surface-600-400 text-xs">
-          Without one, {host.trim()} can change after a reboot or router restart, and the App will lose this
-          device until you update its host manually. Add this to the <code>wifi:</code> section of its ESPHome
-          YAML -- <strong>double-check the gateway and subnet against your own router</strong>, these are just
-          the most common home-network defaults, not read from your network:
-        </p>
-        <div class="border-surface-300-700 bg-surface-50-950 overflow-x-auto rounded-lg border p-3">
-          <pre bind:this={yamlEl} class="font-mono text-xs whitespace-pre">{staticIpYaml}</pre>
-        </div>
-        <button type="button" class="btn preset-tonal btn-sm w-full" onclick={copyYaml}>
-          {#if yamlCopied}
-            <CheckIcon class="size-4" />
-            Copied
-          {:else}
-            <CopyIcon class="size-4" />
-            Copy YAML
-          {/if}
-        </button>
-      {:else}
-        <p class="text-surface-600-400 text-xs">
-          {host.trim()} is a hostname, not an IP -- this App can't derive a gateway/subnet from it to show
-          you a ready-made YAML block. Hostname (mDNS) resolution isn't always reliable for this App though,
-          so for the most robust setup: find this ESP's actual IP address (check your router's device list,
-          or the ESP's own logs) and give it a static IP -- either a DHCP reservation on your router, or a
-          <code>manual_ip:</code> block under <code>wifi:</code> in its ESPHome YAML -- then use that IP
-          address here instead of the hostname.
-        </p>
-      {/if}
-      {#if error}<p class="text-error-500 text-xs">{error}</p>{/if}
-      <div class="flex justify-end gap-2">
-        <button type="button" class="btn preset-tonal btn-sm" onclick={backFromGate} disabled={busy}>Back</button>
-        <button type="button" class="btn preset-filled-primary-500 btn-sm" disabled={busy} onclick={confirmFromGate}>
-          Add device
-        </button>
-      </div>
-    </div>
-  {:else if showAddForm}
+  {#if showAddForm}
     <div class="card preset-filled-surface-100-900 space-y-2 p-3">
       <input class="input" placeholder="Name" bind:value={name} />
       <input class="input" placeholder="Host (IP or .local)" bind:value={host} />
@@ -322,14 +299,21 @@
           type="button"
           class="btn preset-filled-primary-500 btn-sm"
           disabled={busy || !name.trim() || !host.trim()}
-          onclick={handleAddClick}
+          onclick={handleAdd}
         >
           Add
         </button>
       </div>
     </div>
   {:else}
-    <button type="button" class="btn preset-tonal w-full" onclick={() => (showAddForm = true)}>
+    <button
+      type="button"
+      class="btn preset-tonal w-full"
+      onclick={() => {
+        showAddForm = true;
+        justAdded = null;
+      }}
+    >
       <PlusIcon class="size-4" />
       Add device manually
     </button>
