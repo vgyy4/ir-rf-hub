@@ -62,8 +62,7 @@
       `  manual_ip:\n` +
       `    static_ip: ${host.trim()}\n` +
       `    gateway: ${gateway}\n` +
-      `    subnet: 255.255.255.0\n` +
-      `    dns1: ${gateway}`
+      `    subnet: 255.255.255.0`
     );
   });
 
