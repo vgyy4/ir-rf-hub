@@ -26,6 +26,15 @@ class RecordingWizard {
   captures = $state<number[][]>([]);
   finalTimings = $state<number[] | null>(null);
   carrierFrequencyHz = $state(0);
+  /** Many remotes send the same code several times per button press --
+   * the ESP delivers each repeat as its own capture (see captures above),
+   * so how many arrived during one recording is exactly how many times
+   * to repeat on transmit. Auto-filled in stopRecording(), user-editable
+   * in the "name" step: a receiver that expects N repeats to debounce
+   * noise won't act on a single one, regardless of how correct that one
+   * capture is.
+   */
+  repeatCount = $state(1);
   name = $state("");
   error = $state<string | null>(null);
   busy = $state(false);
@@ -48,6 +57,7 @@ class RecordingWizard {
     this.captures = [];
     this.finalTimings = null;
     this.carrierFrequencyHz = 0;
+    this.repeatCount = 1;
     this.name = "";
     this.error = null;
     this.busy = false;
@@ -72,6 +82,7 @@ class RecordingWizard {
       this.sessionId = resp.session_id;
       this.captures = [];
       this.finalTimings = null;
+      this.repeatCount = 1;
       this.carrierFrequencyHz = receiverFrequencyHz(devicesStore.items, this.deviceId, this.type);
       this.step = "recording";
       this.unsubscribeWs = connectRecordingSocket(resp.session_id, (timings) => {
@@ -105,6 +116,7 @@ class RecordingWizard {
     try {
       const result = await stopRecording(this.sessionId);
       this.finalTimings = result.timings;
+      this.repeatCount = Math.max(1, result.capture_count);
       this.unsubscribeWs?.();
       this.unsubscribeWs = null;
     } catch (e) {
@@ -128,6 +140,7 @@ class RecordingWizard {
         type: this.type,
         raw_timings: this.finalTimings,
         carrier_frequency_hz: this.carrierFrequencyHz,
+        repeat_count: this.repeatCount,
         recorded_from_device_id: this.deviceId,
       });
       this.step = "closed";
