@@ -23,8 +23,34 @@
   let discovered = $state<DiscoveredDevice[]>([]);
   let discovering = $state(false);
 
+  // The App has no way to actually inspect an ESP's YAML (it only ever
+  // talks to it over the native API), so this can't be a per-device
+  // "detected" fact -- it's a standing recommendation, shown consistently
+  // until the user dismisses it, rather than a check that passes or fails.
+  const HIDE_STATIC_IP_TIP_KEY = "ir_rf_hub_hide_static_ip_tip";
+  let hideStaticIpTip = $state(localStorage.getItem(HIDE_STATIC_IP_TIP_KEY) === "1");
+
+  function setHideStaticIpTip(value: boolean) {
+    hideStaticIpTip = value;
+    localStorage.setItem(HIDE_STATIC_IP_TIP_KEY, value ? "1" : "0");
+  }
+
   $effect(() => {
-    if (open) void devicesStore.refresh();
+    if (open) {
+      void devicesStore.refresh();
+      // Saves the user a click in the common case (opening the menu to
+      // add a device that's already powered on); the radar button stays
+      // for the "opened the menu, then turned the ESP on" case this can't
+      // cover.
+      void handleDiscover();
+    } else {
+      // This component stays mounted across close/open (Modal just
+      // toggles visibility), so without this the add-device form -- and
+      // a stale discovered-devices list -- would still be showing the
+      // next time the menu opens.
+      resetForm();
+      discovered = [];
+    }
   });
 
   async function handleDiscover() {
@@ -109,6 +135,13 @@
     </div>
   {/if}
 
+  {#if !hideStaticIpTip && devicesStore.items.length > 0}
+    <p class="text-surface-500 mb-2 text-xs">
+      Tip: give these ESPs a static IP (a router DHCP reservation, or <code>manual_ip:</code> in their
+      ESPHome YAML) so the App doesn't lose them after a reboot.
+    </p>
+  {/if}
+
   <ul class="mb-3 flex max-h-64 flex-col gap-2 overflow-y-auto">
     {#each devicesStore.items as device (device.id)}
       <li class="card preset-filled-surface-100-900 flex items-center justify-between gap-2 p-3">
@@ -140,7 +173,25 @@
       <input class="input" placeholder="Name" bind:value={name} />
       <input class="input" placeholder="Host (IP or .local)" bind:value={host} />
       <input class="input" type="number" placeholder="Port" bind:value={port} />
-      <input class="input" placeholder="Encryption key (optional)" bind:value={encryptionKey} />
+      <input class="input" placeholder="Encryption key (only if this ESP uses one)" bind:value={encryptionKey} />
+      {#if !hideStaticIpTip}
+        <div class="preset-tonal-warning space-y-2 rounded-lg p-2.5 text-xs">
+          <p>
+            <strong>Recommended:</strong> give this ESP a static IP -- either a DHCP reservation on your
+            router, or a <code>manual_ip:</code> block under <code>wifi:</code> in its ESPHome YAML.
+            Without one, its IP can change after a reboot or router restart, and the App will lose it
+            until you update the host here manually.
+          </p>
+          <label class="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={hideStaticIpTip}
+              onchange={(e) => setHideStaticIpTip(e.currentTarget.checked)}
+            />
+            <span>Don't show this again</span>
+          </label>
+        </div>
+      {/if}
       {#if error}<p class="text-error-500 text-xs">{error}</p>{/if}
       <div class="flex justify-end gap-2">
         <button type="button" class="btn preset-tonal btn-sm" onclick={resetForm}>Cancel</button>

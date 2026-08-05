@@ -35,6 +35,28 @@ class DeviceUnreachableError(Exception):
     pass
 
 
+# Subclasses of DeviceUnreachableError -- every existing `except
+# DeviceUnreachableError` catch (device_manager.py, device_session.py,
+# commands.py, recording.py) keeps working unchanged for these too. Only
+# callers that want to give the user a specific, actionable message (see
+# api/rest/devices.py's create_device/update_device) need to catch these
+# more specific subtypes ahead of the base one.
+class DeviceRequiresEncryptionError(DeviceUnreachableError):
+    """The device rejected a plaintext connection attempt -- it's
+    compiled with `api: encryption:` and needs the noise_psk key.
+    """
+
+
+class DeviceEncryptionKeyInvalidError(DeviceUnreachableError):
+    """A noise_psk key was provided but the device rejected it."""
+
+
+class DeviceUnexpectedEncryptionError(DeviceUnreachableError):
+    """A noise_psk key was provided but this device isn't using
+    encryption at all -- it answered in plaintext.
+    """
+
+
 class EspHomeConnection:
     """One live native-API connection to one ESPHome device."""
 
@@ -58,8 +80,22 @@ class EspHomeConnection:
         return self._connected
 
     async def connect(self) -> None:
+        # Order matters: these are all subclasses of api.APIConnectionError,
+        # so the specific ones must be checked before the generic catch-all
+        # below or they'd never match. Verified against aioesphomeapi's own
+        # exception hierarchy (core.py) -- RequiresEncryptionAPIError fires
+        # when we connected in plaintext but the device demands encryption;
+        # InvalidEncryptionKeyAPIError/EncryptionHelloAPIError fire when a
+        # noise_psk was sent but rejected; EncryptionPlaintextAPIError is
+        # the reverse -- we sent a key but the device answered in plaintext.
         try:
             await asyncio.wait_for(self._client.connect(login=False), timeout=self._connect_timeout_s)
+        except api.RequiresEncryptionAPIError as exc:
+            raise DeviceRequiresEncryptionError(str(exc)) from exc
+        except (api.InvalidEncryptionKeyAPIError, api.EncryptionHelloAPIError) as exc:
+            raise DeviceEncryptionKeyInvalidError(str(exc)) from exc
+        except api.EncryptionPlaintextAPIError as exc:
+            raise DeviceUnexpectedEncryptionError(str(exc)) from exc
         except (asyncio.TimeoutError, api.APIConnectionError) as exc:
             raise DeviceUnreachableError(str(exc)) from exc
         self._receive_unsub = self._client.subscribe_infrared_rf_receive(self._on_receive_event)

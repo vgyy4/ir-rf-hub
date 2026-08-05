@@ -3,6 +3,12 @@ from __future__ import annotations
 import httpx
 import pytest
 
+import ir_rf_hub.api.rest.devices as devices_module
+from ir_rf_hub.esphome.connection import (
+    DeviceEncryptionKeyInvalidError,
+    DeviceRequiresEncryptionError,
+    DeviceUnexpectedEncryptionError,
+)
 from ir_rf_hub.esphome.device_manager import device_manager
 from ir_rf_hub.main import _connect_known_devices, create_app
 from tests.fakes.fake_esphome_server import FakeEspHomeServer, FakeInfraredEntity
@@ -117,3 +123,156 @@ async def test_startup_reconnect_skips_unreachable_devices_without_raising(clien
 
     after = await client.get("/api/devices")
     assert after.json()[0]["connection_state"] == "error"
+
+
+async def test_create_device_rejects_duplicate_name_case_insensitively(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
+    resp = await client.post("/api/devices", json={"name": "living room", "host": "10.0.0.55", "port": 6053})
+    assert resp.status_code == 409
+    # rejected before ever being saved
+    assert len((await client.get("/api/devices")).json()) == 1
+
+
+async def test_create_device_rejects_duplicate_host(client: httpx.AsyncClient, fake_device: FakeEspHomeServer):
+    await client.post("/api/devices", json={"name": "First", "host": fake_device.host, "port": fake_device.port})
+    resp = await client.post(
+        "/api/devices", json={"name": "Second", "host": fake_device.host, "port": fake_device.port}
+    )
+    assert resp.status_code == 409
+    assert len((await client.get("/api/devices")).json()) == 1
+
+
+async def test_update_device_rejects_renaming_to_a_duplicate(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    await client.post("/api/devices", json={"name": "Kitchen", "host": fake_device.host, "port": fake_device.port})
+    other = (
+        await client.post("/api/devices", json={"name": "Bathroom", "host": "10.0.0.77", "port": 6053})
+    ).json()
+
+    resp = await client.put(f"/api/devices/{other['id']}", json={"name": "kitchen"})
+    assert resp.status_code == 409
+
+    # renaming to its own current name (unchanged) must still be allowed
+    resp2 = await client.put(f"/api/devices/{other['id']}", json={"name": "Bathroom"})
+    assert resp2.status_code == 200
+
+
+async def test_update_device_rejects_duplicate_host(client: httpx.AsyncClient, fake_device: FakeEspHomeServer):
+    await client.post("/api/devices", json={"name": "First", "host": fake_device.host, "port": fake_device.port})
+    other = (await client.post("/api/devices", json={"name": "Second", "host": "10.0.0.77", "port": 6053})).json()
+
+    # must match both host AND port to collide -- a shared host with a
+    # different port is a legitimate distinct target (see
+    # _ensure_unique_host's comment)
+    resp = await client.put(
+        f"/api/devices/{other['id']}", json={"host": fake_device.host, "port": fake_device.port}
+    )
+    assert resp.status_code == 409
+
+
+class _FakeConnection:
+    """Stands in for esphome.connection.EspHomeConnection in the
+    devices.py module namespace -- monkeypatched in so
+    _reject_if_encryption_mismatch's throwaway pre-check hits a
+    deterministic outcome without a real Noise handshake (the fake
+    ESPHome test server is plaintext-only, see
+    test_connection_encryption_errors.py).
+    """
+
+    def __init__(self, *, host, port, password=None, noise_psk=None, connect_timeout_s=10):
+        pass
+
+    async def connect(self):
+        raise self._exc_cls("simulated")
+
+    async def disconnect(self):
+        pass
+
+
+def _fake_connection_raising(exc_cls: type[Exception]):
+    def factory(**kwargs):
+        conn = _FakeConnection(**kwargs)
+        conn._exc_cls = exc_cls
+        return conn
+
+    return factory
+
+
+async def test_create_device_rejects_when_device_requires_encryption(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        devices_module, "EspHomeConnection", _fake_connection_raising(DeviceRequiresEncryptionError)
+    )
+    resp = await client.post("/api/devices", json={"name": "Needs Key", "host": "10.0.0.99", "port": 6053})
+    assert resp.status_code == 422
+    assert "requires an encryption key" in resp.json()["detail"]
+    assert (await client.get("/api/devices")).json() == []
+
+
+async def test_create_device_rejects_when_encryption_key_is_wrong(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        devices_module, "EspHomeConnection", _fake_connection_raising(DeviceEncryptionKeyInvalidError)
+    )
+    resp = await client.post(
+        "/api/devices",
+        json={"name": "Wrong Key", "host": "10.0.0.99", "port": 6053, "encryption_key": "not-the-real-key"},
+    )
+    assert resp.status_code == 422
+    assert "incorrect" in resp.json()["detail"]
+    assert (await client.get("/api/devices")).json() == []
+
+
+async def test_create_device_rejects_when_key_given_but_not_needed(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        devices_module, "EspHomeConnection", _fake_connection_raising(DeviceUnexpectedEncryptionError)
+    )
+    resp = await client.post(
+        "/api/devices",
+        json={"name": "No Encryption Here", "host": "10.0.0.99", "port": 6053, "encryption_key": "unnecessary"},
+    )
+    assert resp.status_code == 422
+    assert "leave the key blank" in resp.json()["detail"]
+    assert (await client.get("/api/devices")).json() == []
+
+
+async def test_update_device_rejects_new_encryption_key_that_is_wrong(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer, monkeypatch: pytest.MonkeyPatch
+):
+    created = (
+        await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
+    ).json()
+
+    monkeypatch.setattr(
+        devices_module, "EspHomeConnection", _fake_connection_raising(DeviceEncryptionKeyInvalidError)
+    )
+    resp = await client.put(f"/api/devices/{created['id']}", json={"encryption_key": "wrong-key"})
+    assert resp.status_code == 422
+
+    # the device is untouched -- still connectable under its old (no-key) config
+    unchanged = (await client.get("/api/devices")).json()[0]
+    assert unchanged["name"] == "Living Room"
+
+
+async def test_update_device_without_touching_connection_fields_skips_the_precheck(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer, monkeypatch: pytest.MonkeyPatch
+):
+    created = (
+        await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
+    ).json()
+
+    # if the pre-check ran here, this would reject the update -- proves it
+    # only fires when host/port/encryption_key/password actually change
+    monkeypatch.setattr(
+        devices_module, "EspHomeConnection", _fake_connection_raising(DeviceRequiresEncryptionError)
+    )
+    resp = await client.put(f"/api/devices/{created['id']}", json={"name": "Living Room Renamed"})
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Living Room Renamed"
