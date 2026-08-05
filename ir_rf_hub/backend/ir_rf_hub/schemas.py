@@ -81,6 +81,18 @@ class DiscoveredDeviceSchema(BaseModel):
     port: int
 
 
+class DeviceOptionSchema(BaseModel):
+    """Minimal id+name shape for the companion integration's per-command
+    select entity -- picking which ESP to fire a command through. Just
+    enough to populate a dropdown; unlike EspDeviceSummary this deliberately
+    doesn't carry entities/connection_state, which the integration has no
+    use for here.
+    """
+
+    id: str
+    name: str
+
+
 class RecordingStartRequest(BaseModel):
     type: str  # "ir" | "rf"
     device_id: str

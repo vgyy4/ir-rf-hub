@@ -91,3 +91,60 @@ async def test_integration_fire_without_default_fails_loudly(client: httpx.Async
         f"/api/integration/commands/{command['id']}/fire", headers={"Authorization": f"Bearer {token}"}
     )
     assert resp.status_code == 400
+
+
+async def test_integration_fire_accepts_an_explicit_device_id(client: httpx.AsyncClient):
+    # The select entity (device.py's async_select_option) posts an
+    # explicit device_id -- distinct from a bare button/switch press,
+    # which relies on fire_command's own default/single-candidate
+    # fallback instead.
+    token = await _token(client)
+    server = FakeEspHomeServer(
+        name="integration-esp",
+        infrared_entities=[FakeInfraredEntity(key=1, object_id="ir_tx", name="IR TX", capabilities=1)],
+    )
+    async with server:
+        device = (
+            await client.post("/api/devices", json={"name": "Chosen ESP", "host": server.host, "port": server.port})
+        ).json()
+        command = (
+            await client.post("/api/commands", json={"name": "Pick One", "type": "ir", "raw_timings": [1, -1]})
+        ).json()
+
+        resp = await client.post(
+            f"/api/integration/commands/{command['id']}/fire",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"device_id": device["id"]},
+        )
+        assert resp.status_code == 204
+        assert len(server.transmitted) == 1
+
+
+async def test_integration_candidate_devices_requires_token(client: httpx.AsyncClient):
+    command = (
+        await client.post("/api/commands", json={"name": "Needs Auth", "type": "ir", "raw_timings": [1, -1]})
+    ).json()
+    resp = await client.get(f"/api/integration/commands/{command['id']}/candidate-devices")
+    assert resp.status_code == 401
+
+
+async def test_integration_candidate_devices_returns_matching_transmitters(client: httpx.AsyncClient):
+    token = await _token(client)
+    server = FakeEspHomeServer(
+        name="integration-esp",
+        infrared_entities=[FakeInfraredEntity(key=1, object_id="ir_tx", name="IR TX", capabilities=1)],
+    )
+    async with server:
+        device = (
+            await client.post("/api/devices", json={"name": "Living Room", "host": server.host, "port": server.port})
+        ).json()
+        command = (
+            await client.post("/api/commands", json={"name": "Fan", "type": "ir", "raw_timings": [1, -1]})
+        ).json()
+
+        resp = await client.get(
+            f"/api/integration/commands/{command['id']}/candidate-devices",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        assert resp.json() == [{"id": device["id"], "name": "Living Room"}]
