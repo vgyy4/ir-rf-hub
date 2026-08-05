@@ -120,6 +120,18 @@ export function devicesWithTransmitter(devices: EspDeviceSummary[], type: Signal
   return devices.filter((d) => d.entities.some((e) => e.domain === domain && e.role === "tx"));
 }
 
+// The receiving entity's frequency_hz is the carrier the signal was
+// actually demodulated at (e.g. 38kHz for IR) -- recordings must be
+// transmitted back at that same carrier, or most real-world receivers
+// (TVs included) won't register anything at all, no matter how close the
+// transmitter is. See recording.svelte.ts's startRecording().
+export function receiverFrequencyHz(devices: EspDeviceSummary[], deviceId: string, type: SignalType): number {
+  const domain = domainForType(type);
+  const device = devices.find((d) => d.id === deviceId);
+  const entity = device?.entities.find((e) => e.domain === domain && e.role === "rx");
+  return entity?.frequency_hz ?? 0;
+}
+
 export interface RecordingSessionResponse {
   session_id: string;
   device_id: string;
