@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ir_rf_hub.db.models import Command, EspDevice
 from ir_rf_hub.db.session import get_session
-from ir_rf_hub.esphome.connection import DeviceUnreachableError
+from ir_rf_hub.esphome.connection import (
+    DeviceEncryptionKeyInvalidError,
+    DeviceRequiresEncryptionError,
+    DeviceUnexpectedEncryptionError,
+    DeviceUnreachableError,
+    EspHomeConnection,
+)
 from ir_rf_hub.esphome.device_manager import device_manager
 from ir_rf_hub.esphome.discovery import discover_esphome_devices
 from ir_rf_hub.esphome.integration_discovery import get_reported_devices
@@ -19,9 +25,68 @@ from ir_rf_hub.schemas import (
     EspDeviceSummary,
     EspDeviceUpdate,
 )
-from ir_rf_hub.security import encrypt_secret
+from ir_rf_hub.security import decrypt_secret, encrypt_secret
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
+
+# Fields where changing the value means "must actually reach this device
+# again with these credentials" -- update_device only bothers with the
+# throwaway pre-check below when one of these is part of the request.
+_CONNECTION_FIELDS = {"host", "port", "encryption_key", "password"}
+
+
+async def _ensure_unique_name(name: str, session: AsyncSession, *, exclude_id: str | None = None) -> None:
+    query = select(EspDevice.id).where(func.lower(EspDevice.name) == name.strip().lower())
+    if exclude_id is not None:
+        query = query.where(EspDevice.id != exclude_id)
+    if (await session.execute(query)).scalars().first() is not None:
+        raise HTTPException(409, f'A device named "{name.strip()}" already exists')
+
+
+async def _ensure_unique_host(host: str, port: int, session: AsyncSession, *, exclude_id: str | None = None) -> None:
+    # Keyed on (host, port) rather than host alone -- the same host with a
+    # different port is a legitimate, if unusual, distinct connection
+    # target (e.g. more than one ESPHome instance behind the same
+    # forwarded/loopback address in a dev setup), not "the same device
+    # twice". Real duplicate-IP mistakes almost always reuse the default
+    # port too, so this still catches the case that actually matters.
+    query = select(EspDevice.id).where(func.lower(EspDevice.host) == host.strip().lower(), EspDevice.port == port)
+    if exclude_id is not None:
+        query = query.where(EspDevice.id != exclude_id)
+    if (await session.execute(query)).scalars().first() is not None:
+        raise HTTPException(409, f'A device at {host.strip()}:{port} already exists')
+
+
+def _encryption_error_message(exc: DeviceUnreachableError) -> str:
+    if isinstance(exc, DeviceRequiresEncryptionError):
+        return "This device requires an encryption key. Enter the noise_psk key from its ESPHome YAML's api: encryption: block."
+    if isinstance(exc, DeviceEncryptionKeyInvalidError):
+        return "That encryption key is incorrect for this device."
+    return "An encryption key was entered, but this device isn't configured to use encryption -- leave the key blank."
+
+
+async def _reject_if_encryption_mismatch(
+    *, host: str, port: int, encryption_key: str | None, password: str | None, connect_timeout_s: int
+) -> None:
+    """A throwaway connection attempt purely to catch encryption
+    misconfiguration early with an actionable message, before the device
+    row is ever created or modified. Deliberately narrow: a device that's
+    merely offline or slow is still saved as usual by the real connect
+    attempt that follows this -- only these three specific,
+    certain-to-keep-failing cases are rejected outright, so the
+    (redundant, but harmless) double-connect on the happy path stays rare.
+    """
+    conn = EspHomeConnection(
+        host=host, port=port, password=password, noise_psk=encryption_key, connect_timeout_s=connect_timeout_s
+    )
+    try:
+        await conn.connect()
+    except (DeviceRequiresEncryptionError, DeviceEncryptionKeyInvalidError, DeviceUnexpectedEncryptionError) as exc:
+        raise HTTPException(422, _encryption_error_message(exc)) from exc
+    except DeviceUnreachableError:
+        return
+    else:
+        await conn.disconnect()
 
 
 def _to_summary(device: EspDevice) -> EspDeviceSummary:
@@ -49,6 +114,16 @@ async def list_devices(session: AsyncSession = Depends(get_session)) -> list[Esp
 
 @router.post("", response_model=EspDeviceSummary, status_code=201)
 async def create_device(payload: EspDeviceCreate, session: AsyncSession = Depends(get_session)) -> EspDeviceSummary:
+    await _ensure_unique_name(payload.name, session)
+    await _ensure_unique_host(payload.host, payload.port, session)
+    await _reject_if_encryption_mismatch(
+        host=payload.host,
+        port=payload.port,
+        encryption_key=payload.encryption_key,
+        password=payload.password,
+        connect_timeout_s=payload.connect_timeout_s,
+    )
+
     device = EspDevice(
         name=payload.name,
         host=payload.host,
@@ -82,6 +157,35 @@ async def update_device(
         raise HTTPException(404, "Device not found")
 
     updates = payload.model_dump(exclude_unset=True)
+    if "name" in updates:
+        await _ensure_unique_name(updates["name"], session, exclude_id=device_id)
+    if "host" in updates or "port" in updates:
+        await _ensure_unique_host(
+            updates.get("host", device.host), updates.get("port", device.port), session, exclude_id=device_id
+        )
+
+    if _CONNECTION_FIELDS & updates.keys():
+        # Only the fields actually being changed matter here -- anything
+        # not in the request keeps its current (decrypted, for the
+        # secrets) value as the candidate to test against.
+        candidate_encryption_key = (
+            updates["encryption_key"]
+            if "encryption_key" in updates
+            else (decrypt_secret(device.encryption_key_enc) if device.encryption_key_enc else None)
+        )
+        candidate_password = (
+            updates["password"]
+            if "password" in updates
+            else (decrypt_secret(device.password_enc) if device.password_enc else None)
+        )
+        await _reject_if_encryption_mismatch(
+            host=updates.get("host", device.host),
+            port=updates.get("port", device.port),
+            encryption_key=candidate_encryption_key,
+            password=candidate_password,
+            connect_timeout_s=updates.get("connect_timeout_s", device.connect_timeout_s),
+        )
+
     if "encryption_key" in updates:
         key = updates.pop("encryption_key")
         device.encryption_key_enc = encrypt_secret(key) if key else None
@@ -120,6 +224,8 @@ async def test_device(device_id: str, session: AsyncSession = Depends(get_sessio
     await device_manager.disconnect(device_id)  # force a fresh connection attempt
     try:
         await device_manager.connect(session, device)
+    except (DeviceRequiresEncryptionError, DeviceEncryptionKeyInvalidError, DeviceUnexpectedEncryptionError) as exc:
+        raise HTTPException(422, _encryption_error_message(exc)) from exc
     except DeviceUnreachableError as exc:
         raise HTTPException(502, f"Could not connect: {exc}") from exc
 
