@@ -1,5 +1,5 @@
 name: "IR-RF Command Hub"
-version: "0.1.9"
+version: "0.1.10"
 slug: "ir_rf_hub"
 description: "Record, name, edit, and fire IR/RF commands through ESPHome IR/RF proxy devices"
 url: "https://github.com/vgyy4/ir-rf-hub"

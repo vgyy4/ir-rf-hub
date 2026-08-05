@@ -186,11 +186,12 @@
     <h2 class="h4">ESPHome Devices</h2>
     <button
       type="button"
-      class="btn-icon preset-tonal"
+      class="btn preset-tonal btn-sm"
       onclick={handleDiscover}
       aria-label="Scan for devices on your network"
     >
       <RadarIcon class={["size-4", discovering && "animate-spin"]} />
+      Scan for devices
     </button>
   </div>
 
