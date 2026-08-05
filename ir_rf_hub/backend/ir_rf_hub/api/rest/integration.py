@@ -14,6 +14,8 @@ actually return command data or could be used for control.
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +25,8 @@ from ir_rf_hub.db.session import get_session
 from ir_rf_hub.esphome.integration_discovery import set_reported_devices
 from ir_rf_hub.schemas import CommandSummary, DiscoveredDeviceSchema, HealthResponse
 from ir_rf_hub.security import verify_integration_token
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/integration", tags=["integration"])
 
@@ -86,4 +90,5 @@ async def integration_report_discovered_devices(devices: list[DiscoveredDeviceSc
     finds here. GET /api/devices/discover merges this with the App's own
     local mDNS attempt -- see esphome/integration_discovery.py.
     """
+    logger.info("Received %d discovered device(s) from the integration", len(devices))
     set_reported_devices(devices)
