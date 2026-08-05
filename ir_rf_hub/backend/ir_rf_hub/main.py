@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -99,9 +100,13 @@ def create_app() -> FastAPI:
             return PairingStatusResponse(paired=True, code=None)
 
         token = await _get_or_create_pairing_token()
-        # Internal Supervisor-network hostname for a locally-installed App
-        # with slug ir_rf_hub follows the `local-<slug-with-dashes>` pattern.
-        code = encode_pairing_code(host="local-ir-rf-hub", port=_INTEGRATION_API_PORT, token=token)
+        # The container's own hostname *is* the Supervisor-network DNS name
+        # other add-ons/integrations use to reach it -- Supervisor sets it
+        # when creating the container. Hardcoding `local-ir-rf-hub` only
+        # works for the special "local" add-ons folder; installs from this
+        # repo's custom repository (see repository.yaml) get a different,
+        # repo-hash-based hostname, so that assumption silently broke pairing.
+        code = encode_pairing_code(host=socket.gethostname(), port=_INTEGRATION_API_PORT, token=token)
         return PairingStatusResponse(paired=False, code=code)
 
     app.include_router(devices_router)
