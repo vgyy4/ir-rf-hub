@@ -2,9 +2,13 @@
   import Modal from "./Modal.svelte";
   import { devicesStore } from "../../stores/devices.svelte";
   import { createDevice, deleteDevice, discoverDevices, type DiscoveredDevice } from "../../api";
+  import { copyElementText } from "../../clipboard";
   import PlusIcon from "@lucide/svelte/icons/plus";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
   import RadarIcon from "@lucide/svelte/icons/radar";
+  import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
+  import CopyIcon from "@lucide/svelte/icons/copy";
+  import CheckIcon from "@lucide/svelte/icons/check";
 
   interface Props {
     open: boolean;
@@ -14,6 +18,7 @@
   let { open, onClose }: Props = $props();
 
   let showAddForm = $state(false);
+  let showStaticIpGate = $state(false);
   let name = $state("");
   let host = $state("");
   let port = $state(6053);
@@ -25,14 +30,68 @@
 
   // The App has no way to actually inspect an ESP's YAML (it only ever
   // talks to it over the native API), so this can't be a per-device
-  // "detected" fact -- it's a standing recommendation, shown consistently
-  // until the user dismisses it, rather than a check that passes or fails.
+  // "detected" fact -- it's a standing recommendation, shown once per
+  // add (via the gate below) until the user dismisses it.
   const HIDE_STATIC_IP_TIP_KEY = "ir_rf_hub_hide_static_ip_tip";
   let hideStaticIpTip = $state(localStorage.getItem(HIDE_STATIC_IP_TIP_KEY) === "1");
 
   function setHideStaticIpTip(value: boolean) {
     hideStaticIpTip = value;
     localStorage.setItem(HIDE_STATIC_IP_TIP_KEY, value ? "1" : "0");
+  }
+
+  function ipv4Octets(value: string): number[] | null {
+    const parts = value.trim().split(".");
+    if (parts.length !== 4) return null;
+    const octets = parts.map(Number);
+    if (octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+    return octets;
+  }
+
+  // Neither the App nor the browser can see the user's actual router
+  // config -- gateway-at-.1 and a /24 subnet are just the overwhelming
+  // convention for home networks, not something read from the network.
+  // Only offered when the host is a literal IPv4 address (a .local
+  // hostname has no IP to derive a gateway/subnet from).
+  let staticIpYaml = $derived.by(() => {
+    const octets = ipv4Octets(host);
+    if (!octets) return null;
+    const gateway = `${octets[0]}.${octets[1]}.${octets[2]}.1`;
+    return (
+      `wifi:\n` +
+      `  manual_ip:\n` +
+      `    static_ip: ${host.trim()}\n` +
+      `    gateway: ${gateway}\n` +
+      `    subnet: 255.255.255.0\n` +
+      `    dns1: ${gateway}`
+    );
+  });
+
+  let yamlEl: HTMLElement | undefined = $state();
+  let yamlCopied = $state(false);
+
+  async function copyYaml() {
+    if (!yamlEl || !staticIpYaml || !(await copyElementText(yamlEl, staticIpYaml))) return;
+    yamlCopied = true;
+    setTimeout(() => (yamlCopied = false), 2000);
+  }
+
+  function handleAddClick() {
+    if (!name.trim() || !host.trim()) return;
+    if (!hideStaticIpTip && staticIpYaml) {
+      showStaticIpGate = true;
+      return;
+    }
+    void handleAdd();
+  }
+
+  function backFromGate() {
+    showStaticIpGate = false;
+  }
+
+  async function confirmFromGate() {
+    showStaticIpGate = false;
+    await handleAdd();
   }
 
   $effect(() => {
@@ -78,6 +137,7 @@
     port = 6053;
     encryptionKey = "";
     showAddForm = false;
+    showStaticIpGate = false;
     error = null;
   }
 
@@ -168,30 +228,52 @@
     {/each}
   </ul>
 
-  {#if showAddForm}
+  {#if showStaticIpGate}
+    <div class="card preset-filled-surface-100-900 space-y-3 p-3">
+      <div class="flex items-center gap-2">
+        <TriangleAlertIcon class="text-warning-500 size-5 shrink-0" />
+        <h3 class="font-medium">Give this ESP a static IP</h3>
+      </div>
+      <p class="text-surface-600-400 text-xs">
+        Without one, {host.trim()} can change after a reboot or router restart, and the App will lose this
+        device until you update its host manually. Add this to the <code>wifi:</code> section of its ESPHome
+        YAML -- <strong>double-check the gateway and subnet against your own router</strong>, these are just
+        the most common home-network defaults, not read from your network:
+      </p>
+      <div class="border-surface-300-700 bg-surface-50-950 overflow-x-auto rounded-lg border p-3">
+        <pre bind:this={yamlEl} class="font-mono text-xs whitespace-pre">{staticIpYaml}</pre>
+      </div>
+      <button type="button" class="btn preset-tonal btn-sm w-full" onclick={copyYaml}>
+        {#if yamlCopied}
+          <CheckIcon class="size-4" />
+          Copied
+        {:else}
+          <CopyIcon class="size-4" />
+          Copy YAML
+        {/if}
+      </button>
+      <label class="flex items-center gap-1.5 text-xs">
+        <input
+          type="checkbox"
+          checked={hideStaticIpTip}
+          onchange={(e) => setHideStaticIpTip(e.currentTarget.checked)}
+        />
+        <span>Don't show this again</span>
+      </label>
+      {#if error}<p class="text-error-500 text-xs">{error}</p>{/if}
+      <div class="flex justify-end gap-2">
+        <button type="button" class="btn preset-tonal btn-sm" onclick={backFromGate} disabled={busy}>Back</button>
+        <button type="button" class="btn preset-filled-primary-500 btn-sm" disabled={busy} onclick={confirmFromGate}>
+          Add device
+        </button>
+      </div>
+    </div>
+  {:else if showAddForm}
     <div class="card preset-filled-surface-100-900 space-y-2 p-3">
       <input class="input" placeholder="Name" bind:value={name} />
       <input class="input" placeholder="Host (IP or .local)" bind:value={host} />
       <input class="input" type="number" placeholder="Port" bind:value={port} />
       <input class="input" placeholder="Encryption key (only if this ESP uses one)" bind:value={encryptionKey} />
-      {#if !hideStaticIpTip}
-        <div class="preset-tonal-warning space-y-2 rounded-lg p-2.5 text-xs">
-          <p>
-            <strong>Recommended:</strong> give this ESP a static IP -- either a DHCP reservation on your
-            router, or a <code>manual_ip:</code> block under <code>wifi:</code> in its ESPHome YAML.
-            Without one, its IP can change after a reboot or router restart, and the App will lose it
-            until you update the host here manually.
-          </p>
-          <label class="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={hideStaticIpTip}
-              onchange={(e) => setHideStaticIpTip(e.currentTarget.checked)}
-            />
-            <span>Don't show this again</span>
-          </label>
-        </div>
-      {/if}
       {#if error}<p class="text-error-500 text-xs">{error}</p>{/if}
       <div class="flex justify-end gap-2">
         <button type="button" class="btn preset-tonal btn-sm" onclick={resetForm}>Cancel</button>
@@ -199,7 +281,7 @@
           type="button"
           class="btn preset-filled-primary-500 btn-sm"
           disabled={busy || !name.trim() || !host.trim()}
-          onclick={handleAdd}
+          onclick={handleAddClick}
         >
           Add
         </button>
