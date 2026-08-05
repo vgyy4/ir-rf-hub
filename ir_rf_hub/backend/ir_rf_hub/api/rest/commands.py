@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ir_rf_hub.db.models import Command, DeviceEntity, DeviceRole, EspDevice, SignalDomain, SignalType
@@ -52,6 +52,24 @@ def _domain_for_type(type_: str) -> SignalDomain:
     raise HTTPException(400, "type must be 'ir' or 'rf'")
 
 
+async def _ensure_unique_name(name: str, session: AsyncSession, *, exclude_id: str | None = None) -> None:
+    query = select(Command.id).where(func.lower(Command.name) == name.strip().lower())
+    if exclude_id is not None:
+        query = query.where(Command.id != exclude_id)
+    if (await session.execute(query)).scalars().first() is not None:
+        raise HTTPException(409, f"A command named \"{name.strip()}\" already exists")
+
+
+async def _candidate_tx_device_ids(domain: SignalDomain, session: AsyncSession) -> list[str]:
+    result = await session.execute(
+        select(EspDevice.id)
+        .join(DeviceEntity, DeviceEntity.device_id == EspDevice.id)
+        .where(DeviceEntity.domain == domain, DeviceEntity.role == DeviceRole.tx)
+        .distinct()
+    )
+    return list(result.scalars().all())
+
+
 @router.get("", response_model=list[CommandSummary])
 async def list_commands(session: AsyncSession = Depends(get_session)) -> list[CommandSummary]:
     result = await session.execute(select(Command).order_by(Command.name))
@@ -69,6 +87,7 @@ async def get_command(command_id: str, session: AsyncSession = Depends(get_sessi
 @router.post("", response_model=CommandDetail, status_code=201)
 async def create_command(payload: CommandCreateRequest, session: AsyncSession = Depends(get_session)) -> CommandDetail:
     _domain_for_type(payload.type)  # validates
+    await _ensure_unique_name(payload.name, session)
     command = Command(
         name=payload.name,
         type=SignalType(payload.type),
@@ -92,7 +111,10 @@ async def update_command(
     if command is None:
         raise HTTPException(404, "Command not found")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    if "name" in updates:
+        await _ensure_unique_name(updates["name"], session, exclude_id=command_id)
+    for field, value in updates.items():
         setattr(command, field, value)
 
     await session.commit()
@@ -135,7 +157,21 @@ async def fire_command(command_id: str, payload: FireRequest, session: AsyncSess
     if command is None:
         raise HTTPException(404, "Command not found")
 
+    domain = _domain_for_type(command.type.value)
     device_id = payload.device_id or command.default_device_id
+    if device_id is None:
+        # No explicit target and no default -- the App's own UI can ask
+        # "which ESP?" interactively (see /candidate-devices), but a
+        # button/switch press or automation call from the companion
+        # integration has no way to prompt anyone. If there's exactly
+        # one device that could possibly send this, use it rather than
+        # failing every fire from Home Assistant for commands nobody
+        # bothered to set a default on (the common case if you only own
+        # one IR and one RF transmitter). Still refuses to guess when
+        # it's genuinely ambiguous.
+        candidates = await _candidate_tx_device_ids(domain, session)
+        if len(candidates) == 1:
+            device_id = candidates[0]
     if device_id is None:
         raise HTTPException(400, "No device specified and this command has no default device")
 
@@ -143,7 +179,6 @@ async def fire_command(command_id: str, payload: FireRequest, session: AsyncSess
     if device is None:
         raise HTTPException(404, "Device not found")
 
-    domain = _domain_for_type(command.type.value)
     entity = (
         await session.execute(
             select(DeviceEntity).where(

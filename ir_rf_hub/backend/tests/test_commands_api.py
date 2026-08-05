@@ -102,6 +102,61 @@ async def test_fire_uses_default_device_when_none_given(client: httpx.AsyncClien
     assert len(fake_device.transmitted) == 1
 
 
+async def test_fire_without_default_auto_resolves_the_sole_candidate_device(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    # No default_device_id and no explicit device in the fire request --
+    # this is exactly what the companion integration's button/switch
+    # entities send, since they have no way to prompt "which ESP?" the
+    # way the App's own UI can.
+    await client.post("/api/devices", json={"name": "Only ESP", "host": fake_device.host, "port": fake_device.port})
+    command = (
+        await client.post("/api/commands", json={"name": "Fan", "type": "ir", "raw_timings": [1, -1]})
+    ).json()
+
+    resp = await client.post(f"/api/commands/{command['id']}/fire", json={})
+    assert resp.status_code == 204
+    assert len(fake_device.transmitted) == 1
+
+
+async def test_fire_without_default_stays_ambiguous_with_two_candidate_devices(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    second_server = FakeEspHomeServer(
+        name="second-esp",
+        infrared_entities=[FakeInfraredEntity(key=2, object_id="ir_tx", name="IR TX", capabilities=1)],
+    )
+    async with second_server:
+        await client.post("/api/devices", json={"name": "ESP One", "host": fake_device.host, "port": fake_device.port})
+        await client.post(
+            "/api/devices", json={"name": "ESP Two", "host": second_server.host, "port": second_server.port}
+        )
+        command = (
+            await client.post("/api/commands", json={"name": "Fan", "type": "ir", "raw_timings": [1, -1]})
+        ).json()
+
+        resp = await client.post(f"/api/commands/{command['id']}/fire", json={})
+        assert resp.status_code == 400
+
+
+async def test_create_command_rejects_duplicate_name_case_insensitively(client: httpx.AsyncClient):
+    await client.post("/api/commands", json={"name": "TV Power", "type": "ir", "raw_timings": [1, -1]})
+    resp = await client.post("/api/commands", json={"name": "tv power", "type": "rf", "raw_timings": [1, -1]})
+    assert resp.status_code == 409
+
+
+async def test_update_command_rejects_renaming_to_a_duplicate(client: httpx.AsyncClient):
+    await client.post("/api/commands", json={"name": "Fan On", "type": "rf", "raw_timings": [1, -1]})
+    other = (await client.post("/api/commands", json={"name": "Fan Off", "type": "rf", "raw_timings": [1, -1]})).json()
+
+    resp = await client.put(f"/api/commands/{other['id']}", json={"name": "fan on"})
+    assert resp.status_code == 409
+
+    # Renaming to its own current name (unchanged) must still be allowed.
+    resp2 = await client.put(f"/api/commands/{other['id']}", json={"name": "Fan Off"})
+    assert resp2.status_code == 200
+
+
 async def test_candidate_devices_filters_to_transmitters_of_matching_type(
     client: httpx.AsyncClient, fake_device: FakeEspHomeServer
 ):
