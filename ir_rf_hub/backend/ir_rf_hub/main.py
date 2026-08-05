@@ -24,7 +24,8 @@ from ir_rf_hub.api.ws.events import router as ws_events_router
 from ir_rf_hub.api.ws.recording_ws import router as ws_recording_router
 from ir_rf_hub.config import settings
 from ir_rf_hub.db.session import session_scope
-from ir_rf_hub.db.models import Setting
+from ir_rf_hub.db.models import EspDevice, Setting
+from ir_rf_hub.esphome.connection import DeviceUnreachableError
 from ir_rf_hub.esphome.device_manager import device_manager
 from ir_rf_hub.schemas import HealthResponse, PairingStatusResponse
 from ir_rf_hub.security import encode_pairing_code, generate_pairing_token
@@ -84,6 +85,39 @@ async def _get_or_create_pairing_token() -> str:
         return token
 
 
+async def _connect_known_devices() -> None:
+    """Best-effort: connects to every saved device once at startup, so
+    the device list's connection_state reflects reality right away
+    instead of showing every device as "disconnected" until the user
+    happens to fire/record/test one -- device_manager only ever learns a
+    device is reachable as a side effect of some other action, and a
+    restart (routine: HA restarts, App updates like this one) wipes its
+    in-memory session cache entirely. A genuinely offline device just
+    stays disconnected, same as create_device's own best-effort connect.
+
+    Concurrent, each with its own DB session -- AsyncSession isn't safe
+    to share across concurrently-running coroutines -- so total delay is
+    roughly the single slowest device's connect_timeout_s, not their sum.
+    """
+    async with session_scope() as session:
+        device_ids = list((await session.execute(select(EspDevice.id))).scalars().all())
+
+    async def _connect_one(device_id: str) -> None:
+        async with session_scope() as device_session:
+            device = await device_session.get(EspDevice, device_id)
+            if device is None:
+                return
+            try:
+                await device_manager.connect(device_session, device)
+            except DeviceUnreachableError:
+                pass
+
+    results = await asyncio.gather(*(_connect_one(d) for d in device_ids), return_exceptions=True)
+    for device_id, result in zip(device_ids, results):
+        if isinstance(result, BaseException):
+            logger.warning("Startup connect to device %s failed unexpectedly", device_id, exc_info=result)
+
+
 async def _announce_pairing_until_paired(token: str) -> None:
     """Re-announces on an interval rather than once: Supervisor's
     Discovery API doesn't persist across a Supervisor/Core restart the
@@ -108,10 +142,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await asyncio.to_thread(_run_migrations)
     token = await _get_or_create_pairing_token()
     announce_task = asyncio.create_task(_announce_pairing_until_paired(token))
+    connect_task = asyncio.create_task(_connect_known_devices())
     yield
     announce_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await announce_task
+    # Deliberately awaited, not cancelled, unlike announce_task above:
+    # this is a bounded one-shot (each device already has its own
+    # connect_timeout_s, and _connect_one/gather(return_exceptions=True)
+    # already swallow every expected failure) rather than a forever-loop,
+    # so there's no need to cut it short. Cancelling mid-flight risked
+    # interrupting an aiosqlite operation and leaving its background
+    # worker thread trying to call back into an event loop that's since
+    # closed -- confirmed by a real "Event loop is closed" warning
+    # surfacing in unrelated tests during development.
+    with contextlib.suppress(Exception):
+        await connect_task
     await device_manager.disconnect_all()
     logger.info("IR/RF Command Hub backend shutting down")
 
