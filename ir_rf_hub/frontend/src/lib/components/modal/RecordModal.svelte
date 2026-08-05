@@ -88,6 +88,15 @@
     <h2 class="h4 mb-1">Name this function</h2>
     <p class="text-surface-600-400 mb-3 text-sm">e.g. "TV Power" or "Living Room Fan Speed 2"</p>
     <input type="text" class="input mb-4" bind:value={wizard.name} placeholder="Function name" use:autofocus />
+    <label class="mb-4 block">
+      <span class="text-surface-600-400 text-sm">Repeat count</span>
+      <input type="number" class="input mt-1" min="1" bind:value={wizard.repeatCount} />
+      <span class="text-surface-500 mt-1 block text-xs">
+        How many times to send the signal when fired. Pre-filled with how many times your remote
+        repeated it during recording -- some receivers need to see the same code several times in
+        a row to act on it.
+      </span>
+    </label>
     {#if wizard.error}<p class="text-error-500 mb-2 text-sm">{wizard.error}</p>{/if}
     <div class="flex justify-end gap-2">
       <button type="button" class="btn preset-tonal" onclick={handleClose}>Cancel</button>

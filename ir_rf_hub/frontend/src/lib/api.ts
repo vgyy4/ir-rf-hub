@@ -191,6 +191,7 @@ export interface CreateCommandRequest {
   type: SignalType;
   raw_timings: number[];
   carrier_frequency_hz: number;
+  repeat_count?: number;
   default_device_id?: string | null;
   recorded_from_device_id?: string | null;
 }
