@@ -118,6 +118,17 @@ class Command(Base):
     # Alternating mark/space microsecond durations, first element = mark.
     raw_timings: Mapped[list[int]] = mapped_column(JSON)
 
+    # Set only for a two-shape command (see esphome/signal_shapes.py):
+    # raw_timings is the leader, fired once on transmit; repeat_timings is
+    # fired (repeat_count - 1) more times after it. NULL means a plain
+    # single-shape command -- raw_timings alone, fired repeat_count times,
+    # the only behavior that existed before this column did.
+    repeat_timings: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
+    # Informational only (e.g. "nec_leader_repeat") -- set when
+    # repeat_timings was auto-detected rather than manually chosen by the
+    # user from recording's shape_candidates. Never read by the fire path.
+    repeat_protocol: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     carrier_frequency_hz: Mapped[int] = mapped_column(Integer, default=0)
     modulation: Mapped[Modulation] = mapped_column(Enum(Modulation), default=Modulation.ook)
     repeat_count: Mapped[int] = mapped_column(Integer, default=1)

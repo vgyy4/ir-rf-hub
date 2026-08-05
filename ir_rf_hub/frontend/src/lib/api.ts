@@ -138,10 +138,27 @@ export interface RecordingSessionResponse {
   type: SignalType;
 }
 
+export interface ShapeCandidate {
+  timings: number[];
+  edge_count: number;
+  occurrences: number;
+}
+
+export interface DetectedProtocolInfo {
+  name: string;
+  leader_timings: number[];
+  repeat_timings: number[];
+}
+
+// Exactly one of timings / detected_protocol / shape_candidates is set,
+// depending on what the backend found among the session's captures --
+// see backend's esphome/signal_shapes.py.
 export interface RecordingStopResponse {
   session_id: string;
   capture_count: number;
-  timings: number[];
+  timings: number[] | null;
+  detected_protocol: DetectedProtocolInfo | null;
+  shape_candidates: ShapeCandidate[] | null;
 }
 
 export function startRecording(type: SignalType, deviceId: string): Promise<RecordingSessionResponse> {
@@ -176,6 +193,14 @@ export interface CommandDetail extends CommandSummary {
   raw_timings: number[];
   carrier_frequency_hz: number;
   repeat_count: number;
+  // Set only for a two-shape command: raw_timings is the leader (fired
+  // once), repeat_timings fires (repeat_count - 1) more times after it.
+  // null means a plain single-shape command, unchanged from before this
+  // existed. See the backend's esphome/signal_shapes.py.
+  repeat_timings: number[] | null;
+  // Informational only (e.g. "nec_leader_repeat") -- set when
+  // repeat_timings was auto-detected rather than manually chosen.
+  repeat_protocol: string | null;
 }
 
 export function listCommands(): Promise<CommandSummary[]> {
@@ -194,6 +219,8 @@ export interface CreateCommandRequest {
   repeat_count?: number;
   default_device_id?: string | null;
   recorded_from_device_id?: string | null;
+  repeat_timings?: number[] | null;
+  repeat_protocol?: string | null;
 }
 
 export function createCommand(payload: CreateCommandRequest): Promise<CommandDetail> {

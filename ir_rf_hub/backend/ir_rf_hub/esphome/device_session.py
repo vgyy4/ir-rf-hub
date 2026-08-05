@@ -76,7 +76,12 @@ class RecordingSession:
     domain: SignalDomain
     rx_key: int
     started_at: float = field(default_factory=time.monotonic)
-    best_timings: list[int] | None = None
+    # Every raw capture in arrival order, not just one "the" signal --
+    # picking which of these is the real command (vs. a repeat, vs. noise)
+    # is signal_shapes.py's job, done once at stop time with the full
+    # picture, not greedily as events arrive. See api/rest/recording.py's
+    # stop_recording().
+    captures: list[list[int]] = field(default_factory=list)
     capture_count: int = 0
 
 
@@ -176,18 +181,7 @@ class DeviceSession:
         self._recording = session
 
         def _on_event(timings: list[int]) -> None:
-            # A single button press commonly triggers multiple receive
-            # events -- some remotes repeat their own signal, and a
-            # receive can echo/debounce -- but those repeats aren't
-            # guaranteed to all be clean. A real full IR/RF frame has
-            # many edges; a truncated or glitched echo has far fewer, so
-            # the capture with the most edges is kept as the canonical
-            # signal rather than whichever arrived last. Confirmed
-            # against a real Samsung TV command: the correct 68-edge
-            # frame arrived first, then a garbled 8-edge trailing blip
-            # overwrote it and got saved as the command instead.
-            if session.best_timings is None or len(timings) > len(session.best_timings):
-                session.best_timings = timings
+            session.captures.append(timings)
             session.capture_count += 1
             self._event_bus.publish(
                 Event(
@@ -202,7 +196,7 @@ class DeviceSession:
 
     def clear_recording(self, session_id: str) -> None:
         session = self._active_recording(session_id)
-        session.best_timings = None
+        session.captures = []
         session.capture_count = 0
 
     async def stop_recording(self, session_id: str) -> RecordingSession:

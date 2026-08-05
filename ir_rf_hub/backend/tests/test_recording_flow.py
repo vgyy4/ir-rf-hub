@@ -116,6 +116,71 @@ async def test_second_recording_attempt_is_rejected_via_http(fake_device: FakeEs
         await client.post(f"/api/recording/sessions/{session_id}/stop")
 
 
+async def test_stop_recording_detects_nec_leader_and_repeat_shapes(fake_device: FakeEspHomeServer):
+    leader = [9000, -4500] + [560, -560, 560, -1690] * 16
+    repeat = [9000, -2250, 560]
+
+    async with running_client() as client:
+        created = (
+            await client.post(
+                "/api/devices", json={"name": "Hallway", "host": fake_device.host, "port": fake_device.port}
+            )
+        ).json()
+        started = await client.post("/api/recording/sessions", json={"type": "ir", "device_id": created["id"]})
+        session_id = started.json()["session_id"]
+
+        async with aconnect_ws(f"/api/ws/recording/{session_id}", client) as ws:
+            await fake_device.emit_receive_event(key=1, timings=leader)
+            await ws.receive_json()
+            await fake_device.emit_receive_event(key=1, timings=repeat)
+            await ws.receive_json()
+
+        stopped = await client.post(f"/api/recording/sessions/{session_id}/stop")
+        assert stopped.status_code == 200
+        body = stopped.json()
+        assert body["timings"] is None
+        assert body["shape_candidates"] is None
+        assert body["detected_protocol"] == {
+            "name": "nec_leader_repeat",
+            "leader_timings": leader,
+            "repeat_timings": repeat,
+        }
+
+
+async def test_stop_recording_offers_shape_candidates_when_ambiguous(fake_device: FakeEspHomeServer):
+    # Neither shape looks like a recognized protocol -- e.g. a real full
+    # frame plus a garbled receiver-noise echo (the "Netflix" bug) --
+    # so both must be surfaced for the user to choose from, not silently
+    # collapsed or discarded.
+    full_frame = [4500, -4500] + [560, -560] * 32
+    garbled_echo = [278, -997, 276, -398, 278, -699, 275]
+
+    async with running_client() as client:
+        created = (
+            await client.post(
+                "/api/devices", json={"name": "Hallway", "host": fake_device.host, "port": fake_device.port}
+            )
+        ).json()
+        started = await client.post("/api/recording/sessions", json={"type": "ir", "device_id": created["id"]})
+        session_id = started.json()["session_id"]
+
+        async with aconnect_ws(f"/api/ws/recording/{session_id}", client) as ws:
+            await fake_device.emit_receive_event(key=1, timings=full_frame)
+            await ws.receive_json()
+            await fake_device.emit_receive_event(key=1, timings=garbled_echo)
+            await ws.receive_json()
+
+        stopped = await client.post(f"/api/recording/sessions/{session_id}/stop")
+        assert stopped.status_code == 200
+        body = stopped.json()
+        assert body["timings"] is None
+        assert body["detected_protocol"] is None
+        assert body["shape_candidates"] == [
+            {"timings": full_frame, "edge_count": len(full_frame), "occurrences": 1},
+            {"timings": garbled_echo, "edge_count": len(garbled_echo), "occurrences": 1},
+        ]
+
+
 async def test_recording_on_device_without_receiver_returns_400():
     async with running_client() as client:
         tx_only_server = FakeEspHomeServer(

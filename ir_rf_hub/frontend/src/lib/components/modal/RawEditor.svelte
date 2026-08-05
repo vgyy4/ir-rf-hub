@@ -27,6 +27,21 @@
     ></textarea>
 
     <label class="mt-3 block">
+      <span class="text-surface-600-400 text-sm">Repeat signal (optional)</span>
+      <textarea
+        class="mt-1 h-20 w-full resize-none rounded-lg bg-neutral-950 p-3 font-mono text-sm text-green-400 outline-none"
+        bind:value={wizard.repeatTimingsText}
+        placeholder="Leave empty for a plain single-shape command"
+        spellcheck="false"
+      ></textarea>
+      <span class="text-surface-500 mt-1 block text-xs">
+        If set, the signal above fires once and this fires for any repeats beyond the first --
+        instead of resending the same signal every time. Matches how some remotes (e.g. NEC-style)
+        send an initial signal once, then switch to a distinct, shorter repeat signal while held.
+      </span>
+    </label>
+
+    <label class="mt-3 block">
       <span class="text-surface-600-400 text-sm">Repeat count</span>
       <input type="number" class="input mt-1 w-32" min="1" bind:value={wizard.repeatCount} />
     </label>

@@ -18,7 +18,14 @@ from ir_rf_hub.db.session import get_session
 from ir_rf_hub.esphome.connection import DeviceUnreachableError
 from ir_rf_hub.esphome.device_manager import device_manager
 from ir_rf_hub.esphome.device_session import DeviceBusyRecordingError, DeviceBusyTimeoutError
-from ir_rf_hub.schemas import RecordingSessionResponse, RecordingStartRequest, RecordingStopResponse
+from ir_rf_hub.esphome.signal_shapes import cluster_captures, detect_multi_shape_protocol
+from ir_rf_hub.schemas import (
+    DetectedProtocolSchema,
+    RecordingSessionResponse,
+    RecordingStartRequest,
+    RecordingStopResponse,
+    ShapeCandidateSchema,
+)
 
 router = APIRouter(prefix="/api/recording", tags=["recording"])
 
@@ -100,11 +107,33 @@ async def stop_recording(session_id: str) -> RecordingStopResponse:
         raise HTTPException(404, str(exc)) from exc
     _session_devices.pop(session_id, None)
 
-    if finished.best_timings is None:
+    if not finished.captures:
         raise HTTPException(422, "No signal was captured during this recording")
 
+    clusters = cluster_captures(finished.captures)
+
+    if len(clusters) == 1:
+        return RecordingStopResponse(
+            session_id=session_id, capture_count=finished.capture_count, timings=clusters[0].timings
+        )
+
+    detected = detect_multi_shape_protocol(clusters)
+    if detected is not None:
+        return RecordingStopResponse(
+            session_id=session_id,
+            capture_count=finished.capture_count,
+            detected_protocol=DetectedProtocolSchema(
+                name=detected.name, leader_timings=detected.leader_timings, repeat_timings=detected.repeat_timings
+            ),
+        )
+
     return RecordingStopResponse(
-        session_id=session_id, capture_count=finished.capture_count, timings=finished.best_timings
+        session_id=session_id,
+        capture_count=finished.capture_count,
+        shape_candidates=[
+            ShapeCandidateSchema(timings=c.timings, edge_count=c.edge_count, occurrences=c.occurrences)
+            for c in clusters
+        ],
     )
 
 

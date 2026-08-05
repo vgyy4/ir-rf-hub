@@ -6,12 +6,20 @@ import {
   startRecording,
   stopRecording,
   type CommandDetail,
+  type DetectedProtocolInfo,
+  type ShapeCandidate,
   type SignalType,
 } from "../api";
 import { devicesStore } from "./devices.svelte";
 import { connectRecordingSocket } from "../ws";
 
-export type RecordStep = "closed" | "choose-type" | "choose-device" | "recording" | "name";
+export type RecordStep = "closed" | "choose-type" | "choose-device" | "recording" | "choose-shapes" | "name";
+
+// Only two roles exist today (leader + repeat, matching the only
+// multi-shape protocol the backend knows how to detect -- see
+// signal_shapes.py) -- so the picker caps selection at 2 rather than
+// supporting an arbitrary-length sequence.
+const MAX_SELECTABLE_SHAPES = 2;
 
 class RecordingWizard {
   step = $state<RecordStep>("closed");
@@ -25,6 +33,21 @@ class RecordingWizard {
    */
   captures = $state<number[][]>([]);
   finalTimings = $state<number[] | null>(null);
+  /** Set only for a two-shape command (leader = finalTimings, this =
+   * the repeat shape) -- either auto-detected (detectedProtocol set) or
+   * chosen by the user in the "choose-shapes" step.
+   */
+  repeatTimings = $state<number[] | null>(null);
+  /** Informational: which known protocol matched, if repeatTimings came
+   * from detection rather than a user choice. Shown in the "name" step.
+   */
+  detectedProtocol = $state<DetectedProtocolInfo | null>(null);
+  /** Populated only when stopRecording() couldn't resolve to a single
+   * shape or a recognized protocol -- the "choose-shapes" step shows
+   * these and lets the user pick up to 2.
+   */
+  shapeCandidates = $state<ShapeCandidate[] | null>(null);
+  selectedShapeIndices = $state<Set<number>>(new Set());
   carrierFrequencyHz = $state(0);
   /** Many remotes send the same code several times per button press --
    * the ESP delivers each repeat as its own capture (see captures above),
@@ -45,6 +68,14 @@ class RecordingWizard {
     return this.deviceId !== null;
   }
 
+  get canProceedFromRecording() {
+    return this.finalTimings !== null || this.shapeCandidates !== null;
+  }
+
+  get canProceedFromShapes() {
+    return this.selectedShapeIndices.size > 0;
+  }
+
   get canFinish() {
     return this.name.trim().length > 0;
   }
@@ -56,6 +87,10 @@ class RecordingWizard {
     this.sessionId = null;
     this.captures = [];
     this.finalTimings = null;
+    this.repeatTimings = null;
+    this.detectedProtocol = null;
+    this.shapeCandidates = null;
+    this.selectedShapeIndices = new Set();
     this.carrierFrequencyHz = 0;
     this.repeatCount = 1;
     this.name = "";
@@ -82,6 +117,10 @@ class RecordingWizard {
       this.sessionId = resp.session_id;
       this.captures = [];
       this.finalTimings = null;
+      this.repeatTimings = null;
+      this.detectedProtocol = null;
+      this.shapeCandidates = null;
+      this.selectedShapeIndices = new Set();
       this.repeatCount = 1;
       this.carrierFrequencyHz = receiverFrequencyHz(devicesStore.items, this.deviceId, this.type);
       this.step = "recording";
@@ -115,10 +154,32 @@ class RecordingWizard {
     this.error = null;
     try {
       const result = await stopRecording(this.sessionId);
-      this.finalTimings = result.timings;
       this.repeatCount = Math.max(1, result.capture_count);
       this.unsubscribeWs?.();
       this.unsubscribeWs = null;
+
+      if (result.timings) {
+        // Every capture was the same shape -- the common case, ready to
+        // save as-is.
+        this.finalTimings = result.timings;
+      } else if (result.detected_protocol) {
+        // A recognized multi-shape protocol (e.g. NEC leader + repeat) --
+        // both parts save together, no user choice needed.
+        this.finalTimings = result.detected_protocol.leader_timings;
+        this.repeatTimings = result.detected_protocol.repeat_timings;
+        this.detectedProtocol = result.detected_protocol;
+      } else if (result.shape_candidates) {
+        // Multiple distinct shapes, no recognized protocol -- the
+        // "choose-shapes" step (see proceedFromRecording) lets the user
+        // pick. Default selection: whichever shape(s) tie for the most
+        // edges, matching the same "most complete capture" heuristic
+        // used when there's only one shape.
+        this.shapeCandidates = result.shape_candidates;
+        const maxEdges = Math.max(...result.shape_candidates.map((c) => c.edge_count));
+        this.selectedShapeIndices = new Set(
+          result.shape_candidates.flatMap((c, i) => (c.edge_count === maxEdges ? [i] : [])),
+        );
+      }
     } catch (e) {
       this.error = String(e);
     } finally {
@@ -126,8 +187,44 @@ class RecordingWizard {
     }
   }
 
-  proceedToName() {
-    if (this.finalTimings) this.step = "name";
+  proceedFromRecording() {
+    if (this.shapeCandidates) {
+      this.step = "choose-shapes";
+    } else if (this.finalTimings) {
+      this.step = "name";
+    }
+  }
+
+  /** Toggles one shape candidate, capping selection at
+   * MAX_SELECTABLE_SHAPES by dropping the oldest selection to make room --
+   * simpler than a hard block for a two-role (leader/repeat) picker.
+   */
+  toggleShapeSelection(index: number) {
+    const next = new Set(this.selectedShapeIndices);
+    if (next.has(index)) {
+      next.delete(index);
+    } else {
+      if (next.size >= MAX_SELECTABLE_SHAPES) {
+        const oldest = next.values().next().value;
+        if (oldest !== undefined) next.delete(oldest);
+      }
+      next.add(index);
+    }
+    this.selectedShapeIndices = next;
+  }
+
+  /** The selected shape with the most edges becomes the leader
+   * (finalTimings); a second selection, if any, becomes the repeat
+   * shape -- deterministic regardless of click order.
+   */
+  confirmShapeSelection() {
+    if (!this.shapeCandidates || this.selectedShapeIndices.size === 0) return;
+    const chosen = [...this.selectedShapeIndices]
+      .map((i) => this.shapeCandidates![i])
+      .sort((a, b) => b.edge_count - a.edge_count);
+    this.finalTimings = chosen[0].timings;
+    this.repeatTimings = chosen.length > 1 ? chosen[1].timings : null;
+    this.step = "name";
   }
 
   async finish(): Promise<CommandDetail | null> {
@@ -142,6 +239,8 @@ class RecordingWizard {
         carrier_frequency_hz: this.carrierFrequencyHz,
         repeat_count: this.repeatCount,
         recorded_from_device_id: this.deviceId,
+        repeat_timings: this.repeatTimings,
+        repeat_protocol: this.detectedProtocol?.name ?? null,
       });
       this.step = "closed";
       return command;

@@ -77,22 +77,20 @@ async def test_recording_captures_raw_timings_and_returns_to_idle(
     await fake_device.emit_receive_event(key=1, timings=[9000, -4500, 560, -560])
     await asyncio.sleep(0.05)
     assert recording.capture_count == 1
-    assert recording.best_timings == [9000, -4500, 560, -560]
+    assert recording.captures == [[9000, -4500, 560, -560]]
 
     finished = await connected_session.stop_recording(recording.id)
-    assert finished.best_timings == [9000, -4500, 560, -560]
+    assert finished.captures == [[9000, -4500, 560, -560]]
     assert connected_session.state == DeviceSessionState.idle
 
 
-async def test_recording_keeps_the_most_complete_capture_not_the_last_one(
+async def test_recording_keeps_every_capture_in_arrival_order(
     connected_session: DeviceSession, fake_device: FakeEspHomeServer
 ):
-    # Reproduces a real bug: a Samsung TV remote's button press produced a
-    # correct full 68-edge frame followed by a garbled short trailing
-    # blip, and the recorder saved the garbage because it just kept
-    # whatever arrived most recently. A real frame has far more edges
-    # than a truncated echo, so the longer capture must win regardless of
-    # arrival order.
+    # Which capture is "the" signal (vs. a repeat, vs. noise) is
+    # signal_shapes.py's job, done once at stop time with the full
+    # picture -- the session itself just needs to record everything that
+    # arrived, in order, without picking favorites.
     full_frame = [4500, -4500] + [560, -560] * 32
     garbled_echo = [278, -997, 276, -398, 278, -699, 275]
 
@@ -103,10 +101,10 @@ async def test_recording_keeps_the_most_complete_capture_not_the_last_one(
     await asyncio.sleep(0.02)
 
     assert recording.capture_count == 2
-    assert recording.best_timings == full_frame
+    assert recording.captures == [full_frame, garbled_echo]
 
     finished = await connected_session.stop_recording(recording.id)
-    assert finished.best_timings == full_frame
+    assert finished.captures == [full_frame, garbled_echo]
 
 
 async def test_clear_and_retry_resets_buffer_without_ending_session(
@@ -119,13 +117,13 @@ async def test_clear_and_retry_resets_buffer_without_ending_session(
 
     connected_session.clear_recording(recording.id)
     assert recording.capture_count == 0
-    assert recording.best_timings is None
+    assert recording.captures == []
     # Still the same active session -- no reconnect, no state change.
     assert connected_session.state == DeviceSessionState.rx_active
 
     await fake_device.emit_receive_event(key=1, timings=[200, -200])
     await asyncio.sleep(0.02)
-    assert recording.best_timings == [200, -200]
+    assert recording.captures == [[200, -200]]
 
     await connected_session.stop_recording(recording.id)
 
