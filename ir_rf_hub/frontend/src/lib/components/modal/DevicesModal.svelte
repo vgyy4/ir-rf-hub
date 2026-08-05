@@ -33,18 +33,6 @@
   let discovered = $state<DiscoveredDevice[]>([]);
   let discovering = $state(false);
 
-  // The App has no way to actually inspect an ESP's YAML (it only ever
-  // talks to it over the native API), so this can't be a per-device
-  // "detected" fact -- it's a standing recommendation, shown once per
-  // add (via the gate below) until the user dismisses it.
-  const HIDE_STATIC_IP_TIP_KEY = "ir_rf_hub_hide_static_ip_tip";
-  let hideStaticIpTip = $state(localStorage.getItem(HIDE_STATIC_IP_TIP_KEY) === "1");
-
-  function setHideStaticIpTip(value: boolean) {
-    hideStaticIpTip = value;
-    localStorage.setItem(HIDE_STATIC_IP_TIP_KEY, value ? "1" : "0");
-  }
-
   function ipv4Octets(value: string): number[] | null {
     const parts = value.trim().split(".");
     if (parts.length !== 4) return null;
@@ -82,16 +70,12 @@
 
   function handleAddClick() {
     if (!name.trim() || !host.trim()) return;
-    // Gated regardless of whether the host is a literal IP -- devices
-    // picked from "Found on your network" are pre-filled with a .local
-    // hostname, not an IP, and that case still deserves a (lighter)
-    // recommendation: see the gate's template for the staticIpYaml
-    // present/absent split.
-    if (!hideStaticIpTip) {
-      showStaticIpGate = true;
-      return;
-    }
-    void handleAdd();
+    // Always gated, regardless of whether the host is a literal IP --
+    // devices picked from "Found on your network" are pre-filled with a
+    // .local hostname, not an IP, and that case still deserves a
+    // (lighter) recommendation: see the gate's template for the
+    // staticIpYaml present/absent split.
+    showStaticIpGate = true;
   }
 
   function backFromGate() {
@@ -225,7 +209,7 @@
     </div>
   {/if}
 
-  {#if !hideStaticIpTip && devicesStore.items.length > 0}
+  {#if devicesStore.items.length > 0}
     <p class="text-surface-500 mb-2 text-xs">
       Tip: give these ESPs a static IP (a router DHCP reservation, or <code>manual_ip:</code> in their
       ESPHome YAML) so the App doesn't lose them after a reboot.
@@ -316,14 +300,6 @@
           address here instead of the hostname.
         </p>
       {/if}
-      <label class="flex items-center gap-1.5 text-xs">
-        <input
-          type="checkbox"
-          checked={hideStaticIpTip}
-          onchange={(e) => setHideStaticIpTip(e.currentTarget.checked)}
-        />
-        <span>Don't show this again</span>
-      </label>
       {#if error}<p class="text-error-500 text-xs">{error}</p>{/if}
       <div class="flex justify-end gap-2">
         <button type="button" class="btn preset-tonal btn-sm" onclick={backFromGate} disabled={busy}>Back</button>
