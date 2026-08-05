@@ -13,10 +13,11 @@
   let { code, onPaired }: Props = $props();
 
   let copied = $state(false);
+  let codeEl: HTMLElement | undefined = $state();
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
   async function copyCode() {
-    if (!(await copyWithClipboardApi(code)) && !copyWithExecCommand(code)) {
+    if (!(await copyWithClipboardApi(code)) && !copyWithSelectionExecCommand()) {
       return;
     }
     copied = true;
@@ -26,7 +27,7 @@
   // Ingress typically serves the App over plain http (not https/localhost),
   // which is not a "secure context" -- `navigator.clipboard` is undefined
   // there, so calling it directly throws and the button silently does
-  // nothing. Fall back to the old execCommand technique in that case.
+  // nothing. Fall back to the legacy execCommand technique in that case.
   async function copyWithClipboardApi(text: string): Promise<boolean> {
     if (!navigator.clipboard) return false;
     try {
@@ -37,20 +38,27 @@
     }
   }
 
-  function copyWithExecCommand(text: string): boolean {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
+  // Selects the visible <code> element's text and copies via the DOM
+  // Selection, rather than creating+focusing a detached <textarea>. The
+  // modal's Dialog runs a focus trap that lives inside its own portal --
+  // focusing an element appended to document.body (outside that subtree)
+  // gets immediately yanked back inside the trap, so execCommand("copy")
+  // ends up copying nothing (or stale content) while still reporting
+  // success. Selecting existing in-modal content sidesteps that.
+  function copyWithSelectionExecCommand(): boolean {
+    if (!codeEl) return false;
+    const selection = window.getSelection();
+    if (!selection) return false;
+    const range = document.createRange();
+    range.selectNodeContents(codeEl);
+    selection.removeAllRanges();
+    selection.addRange(range);
     try {
       return document.execCommand("copy");
     } catch {
       return false;
     } finally {
-      document.body.removeChild(textarea);
+      selection.removeAllRanges();
     }
   }
 
@@ -87,7 +95,7 @@
       <div
         class="border-surface-300-700 bg-surface-50-950 w-full overflow-x-auto rounded-lg border p-4 text-left"
       >
-        <code class="font-mono text-xs break-all">{code}</code>
+        <code bind:this={codeEl} class="font-mono text-xs break-all">{code}</code>
       </div>
       <button type="button" class="btn preset-filled-primary-500 w-full" onclick={copyCode}>
         {#if copied}
