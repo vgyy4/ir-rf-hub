@@ -12,8 +12,24 @@ import {
 } from "../api";
 import { devicesStore } from "./devices.svelte";
 import { connectRecordingSocket } from "../ws";
+import { parseOptionalTimingsText, parseTimingsText, TIMINGS_FORMAT_ERROR } from "../timings";
 
-export type RecordStep = "closed" | "choose-type" | "choose-device" | "recording" | "choose-shapes" | "name";
+export type RecordStep =
+  | "closed"
+  | "choose-type"
+  | "choose-device"
+  | "raw"
+  | "recording"
+  | "choose-shapes"
+  | "name"
+  | "done";
+
+/** The de-facto standard IR carrier. Only used for hand-written raw
+ * commands, where there's no receiving entity to read the real carrier
+ * from (see receiverFrequencyHz) -- most IR receivers ignore a
+ * transmission at the wrong carrier entirely, so a sane default matters.
+ * RF is unmodulated, hence 0. */
+const DEFAULT_IR_CARRIER_HZ = 38000;
 
 // Only two roles exist today (leader + repeat, matching the only
 // multi-shape protocol the backend knows how to detect -- see
@@ -62,11 +78,18 @@ class RecordingWizard {
   error = $state<string | null>(null);
   busy = $state(false);
 
-  private unsubscribeWs: (() => void) | null = null;
+  /** Hand-written raw entry (the "write raw" path off the device step).
+   * Same comma-separated format as the edit wizard's raw editor. */
+  rawTimingsText = $state("");
+  repeatTimingsText = $state("");
+  /** True when finalTimings came from `raw` rather than a live recording.
+   * Decides where Back goes from the name step, and whether "Record
+   * another" has a device to reuse. */
+  enteredRawManually = $state(false);
+  /** Name of the command just saved, shown on the `done` step. */
+  savedName = $state<string | null>(null);
 
-  get canProceedFromDevice() {
-    return this.deviceId !== null;
-  }
+  private unsubscribeWs: (() => void) | null = null;
 
   get canProceedFromRecording() {
     return this.finalTimings !== null || this.shapeCandidates !== null;
@@ -96,6 +119,10 @@ class RecordingWizard {
     this.name = "";
     this.error = null;
     this.busy = false;
+    this.rawTimingsText = "";
+    this.repeatTimingsText = "";
+    this.enteredRawManually = false;
+    this.savedName = null;
   }
 
   chooseType(type: SignalType) {
@@ -104,8 +131,94 @@ class RecordingWizard {
     this.deviceId = null;
   }
 
-  chooseDevice(deviceId: string) {
+  /** Picking a receiver is the whole content of that step, so it starts
+   * the recording immediately rather than making the user confirm a
+   * choice they just made. Back is how you undo it. */
+  async chooseDevice(deviceId: string) {
     this.deviceId = deviceId;
+    await this.startRecording();
+  }
+
+  /** The alternative to recording: type the timings in by hand, for a
+   * signal you already have from a datasheet, another tool, or a device
+   * that isn't reachable right now. */
+  goToRawEntry() {
+    this.step = "raw";
+    this.enteredRawManually = true;
+    this.rawTimingsText = "";
+    this.repeatTimingsText = "";
+    this.repeatCount = 1;
+    this.carrierFrequencyHz = this.type === "ir" ? DEFAULT_IR_CARRIER_HZ : 0;
+    this.error = null;
+  }
+
+  /** Validates the hand-written timings and moves on to naming. Mirrors
+   * what stopRecording() produces, so the name step and finish() can't
+   * tell the two paths apart. */
+  confirmRawEntry() {
+    const timings = parseTimingsText(this.rawTimingsText);
+    const repeat = parseOptionalTimingsText(this.repeatTimingsText);
+    if (!timings) {
+      this.error = TIMINGS_FORMAT_ERROR;
+      return;
+    }
+    if (repeat === undefined) {
+      this.error = `Repeat signal: ${TIMINGS_FORMAT_ERROR.toLowerCase()}`;
+      return;
+    }
+    this.finalTimings = timings;
+    this.repeatTimings = repeat;
+    this.detectedProtocol = null;
+    this.shapeCandidates = null;
+    this.error = null;
+    this.step = "name";
+  }
+
+  /** One step back, wherever that means for the current step. Discards a
+   * live recording session on the way out of `recording` so the device's
+   * half-duplex lock is released rather than held until timeout. */
+  async back() {
+    this.error = null;
+    switch (this.step) {
+      case "choose-device":
+        this.step = "choose-type";
+        this.type = null;
+        break;
+      case "raw":
+        this.enteredRawManually = false;
+        this.step = "choose-device";
+        break;
+      case "recording":
+        await this.discardSession();
+        this.captures = [];
+        this.finalTimings = null;
+        this.shapeCandidates = null;
+        this.selectedShapeIndices = new Set();
+        // deviceId is deliberately kept: the picker shows it still
+        // selected, and tapping it again restarts recording.
+        this.step = "choose-device";
+        break;
+      case "choose-shapes":
+        this.step = "recording";
+        break;
+      case "name":
+        this.step = this.enteredRawManually
+          ? "raw"
+          : this.shapeCandidates
+            ? "choose-shapes"
+            : "recording";
+        break;
+    }
+  }
+
+  get canGoBack() {
+    return (
+      this.step === "choose-device" ||
+      this.step === "raw" ||
+      this.step === "recording" ||
+      this.step === "choose-shapes" ||
+      this.step === "name"
+    );
   }
 
   async startRecording() {
@@ -122,6 +235,7 @@ class RecordingWizard {
       this.shapeCandidates = null;
       this.selectedShapeIndices = new Set();
       this.repeatCount = 1;
+      this.enteredRawManually = false;
       this.carrierFrequencyHz = receiverFrequencyHz(devicesStore.items, this.deviceId, this.type);
       this.step = "recording";
       this.unsubscribeWs = connectRecordingSocket(resp.session_id, (timings) => {
@@ -242,7 +356,11 @@ class RecordingWizard {
         repeat_timings: this.repeatTimings,
         repeat_protocol: this.detectedProtocol?.name ?? null,
       });
-      this.step = "closed";
+      // Lands on `done` rather than closing outright, so capturing a
+      // second command off the same remote doesn't mean walking the whole
+      // wizard again -- see recordAnother().
+      this.savedName = command.name;
+      this.step = "done";
       return command;
     } catch (e) {
       this.error = String(e);
@@ -252,19 +370,47 @@ class RecordingWizard {
     }
   }
 
+  /** Straight back into a live recording on the same signal type and the
+   * same receiver. Falls back to the device step when there's no device to
+   * reuse, which is the case after a hand-written raw command. */
+  async recordAnother() {
+    this.name = "";
+    this.savedName = null;
+    this.error = null;
+    if (!this.type) {
+      this.step = "choose-type";
+      return;
+    }
+    if (!this.deviceId || this.enteredRawManually) {
+      this.enteredRawManually = false;
+      this.step = "choose-device";
+      return;
+    }
+    await this.startRecording();
+  }
+
+  /** Best-effort release of a live recording session. The backend also
+   * cleans up on WebSocket disconnect, so a failure here is not fatal. */
+  private async discardSession() {
+    if (!this.sessionId) return;
+    try {
+      await discardRecording(this.sessionId);
+    } catch {
+      // see above
+    }
+    this.unsubscribeWs?.();
+    this.unsubscribeWs = null;
+    this.sessionId = null;
+  }
+
   /** Closes the modal from any step, discarding an in-progress recording
    * session on the backend if one is still open so the device's half-duplex
    * lock is released promptly rather than waiting for the App to notice
    * the tab went away.
    */
   async close() {
-    if (this.sessionId && this.step === "recording") {
-      try {
-        await discardRecording(this.sessionId);
-      } catch {
-        // best-effort; the session will still be cleaned up if the
-        // WebSocket disconnect is what the backend actually relies on
-      }
+    if (this.step === "recording") {
+      await this.discardSession();
     }
     this.unsubscribeWs?.();
     this.unsubscribeWs = null;

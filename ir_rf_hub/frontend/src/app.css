@@ -1,10 +1,353 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 /* Drive dark mode off a `.dark` class on <html> instead of the OS media
    query, so the Auto/Dark/Light picker (src/lib/stores/theme.svelte.ts) can
-   override it -- Auto still resolves to the system preference, just via JS. */
+   override it -- Auto still resolves to the system preference, just via JS.
+   shadcn's own dark mode is `.dark`-class based too, so the two line up. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-@import "@skeletonlabs/skeleton";
-@import "@skeletonlabs/skeleton-svelte";
-@import "@skeletonlabs/skeleton/themes/catppuccin";
+/* ---------------------------------------------------------------------------
+   Token surface
+   ---------------------------------------------------------------------------
+   The standard shadcn semantic set, plus three additions of our own:
+
+     --ir / --rf   The app encodes signal type as colour in badges, the
+                   recording type cards and the device pickers. Previously
+                   this rode on `primary` (IR) and `tertiary` (RF), which
+                   meant picking a brand colour silently picked the IR colour
+                   too. They are first-class tokens now so palettes can be
+                   designed without that fight. Both are used tonally
+                   (`bg-ir/12 text-ir`), which is why neither needs a
+                   -foreground pair: the token is always the *text* colour and
+                   its own low-opacity tint is the fill. That works in both
+                   schemes -- a dark anchor on white, a pastel on near-black.
+
+     --success     Device connection state. shadcn has no success token.
+
+     --glow-1/2    The two ambient backdrop orbs in App.svelte.
+--------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-ir: var(--ir);
+  --color-rf: var(--rf);
+  --color-success: var(--success);
+  --color-glow-1: var(--glow-1);
+  --color-glow-2: var(--glow-2);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ---------------------------------------------------------------------------
+   Palettes
+   ---------------------------------------------------------------------------
+   Stamped onto <html data-theme="..."> by the theme store, orthogonal to the
+   `.dark` class. Every palette therefore needs both a light and a dark block.
+
+   The three pastel palettes follow one rule that makes pastels work as a UI
+   system rather than a moodboard: in LIGHT mode the token is a darkened
+   anchor of the hue (so it can carry white text and pass WCAG AA), and in
+   DARK mode it is the pastel itself (carrying dark text). Pastels are at
+   their best on dark backgrounds, and this is how you get there without
+   giving up contrast in light mode.
+--------------------------------------------------------------------------- */
+
+:root {
+  --radius: 0.75rem;
+}
+
+/* --- Seaglass (default) -----------------------------------------------------
+   Cool teal RF against warm amber IR. The cool/warm span maps onto
+   radio-vs-infrared intuitively and gives the clearest signal-type read. */
+
+:root,
+[data-theme="seaglass"] {
+  --background: #fbfdfc;
+  --foreground: #16211f;
+  --card: #ffffff;
+  --card-foreground: #16211f;
+  --popover: #ffffff;
+  --popover-foreground: #16211f;
+  --primary: #2c7a78;
+  --primary-foreground: #ffffff;
+  --secondary: #eaf2f0;
+  --secondary-foreground: #204a48;
+  --muted: #f1f5f4;
+  --muted-foreground: #5b6b68;
+  --accent: #e3eeec;
+  --accent-foreground: #204a48;
+  --destructive: #c04a3c;
+  --destructive-foreground: #ffffff;
+  --border: #e2eae8;
+  --input: #dce6e4;
+  --ring: #2c7a78;
+  --ir: #9c5f33;
+  --rf: #2c7a78;
+  --success: #15803d;
+  --glow-1: #9bd2cd;
+  --glow-2: #fcce7c;
+}
+
+:root.dark,
+[data-theme="seaglass"].dark {
+  --background: #0f1918;
+  --foreground: #e8f1ef;
+  --card: #16211f;
+  --card-foreground: #e8f1ef;
+  --popover: #16211f;
+  --popover-foreground: #e8f1ef;
+  --primary: #9bd2cd;
+  --primary-foreground: #0f1918;
+  --secondary: #1e2c2a;
+  --secondary-foreground: #e8f1ef;
+  --muted: #1e2c2a;
+  --muted-foreground: #93a5a2;
+  --accent: #243330;
+  --accent-foreground: #e8f1ef;
+  --destructive: #e5645a;
+  --destructive-foreground: #1a0a08;
+  --border: #263533;
+  --input: #2c3b39;
+  --ring: #9bd2cd;
+  --ir: #fcce7c;
+  --rf: #9bd2cd;
+  --success: #4ade80;
+  --glow-1: #2c7a78;
+  --glow-2: #9c5f33;
+}
+
+/* --- Meadow -----------------------------------------------------------------
+   Golden Summer Fields, extended. Warmest and most editorial. Note that
+   `primary` and `ir` are deliberately the same clay: the source palette is
+   monochromatic-warm, so IR/RF separation here rests on sage-vs-clay plus the
+   badge's own "IR"/"RF" text. Cosmetic tradeoff, not an accessibility one. */
+
+[data-theme="meadow"] {
+  --background: #fefcf5;
+  --foreground: #241f16;
+  --card: #ffffff;
+  --card-foreground: #241f16;
+  --popover: #ffffff;
+  --popover-foreground: #241f16;
+  --primary: #9c5f33;
+  --primary-foreground: #ffffff;
+  --secondary: #f1eddc;
+  --secondary-foreground: #4a3d28;
+  --muted: #f7f2e4;
+  --muted-foreground: #6b6250;
+  --accent: #ede7d2;
+  --accent-foreground: #4a3d28;
+  --destructive: #b4462a;
+  --destructive-foreground: #ffffff;
+  --border: #eae3d0;
+  --input: #e2dac4;
+  --ring: #9c5f33;
+  --ir: #9c5f33;
+  --rf: #5f6b44;
+  --success: #15803d;
+  --glow-1: #d4a373;
+  --glow-2: #ccd5ae;
+}
+
+[data-theme="meadow"].dark {
+  --background: #17150f;
+  --foreground: #f3eee0;
+  --card: #201d16;
+  --card-foreground: #f3eee0;
+  --popover: #201d16;
+  --popover-foreground: #f3eee0;
+  --primary: #d4a373;
+  --primary-foreground: #17150f;
+  --secondary: #2a261d;
+  --secondary-foreground: #f3eee0;
+  --muted: #2a261d;
+  --muted-foreground: #a89e88;
+  --accent: #322d22;
+  --accent-foreground: #f3eee0;
+  --destructive: #e5806a;
+  --destructive-foreground: #1a0c07;
+  --border: #363126;
+  --input: #3d3729;
+  --ring: #d4a373;
+  --ir: #e8b98a;
+  --rf: #c2ce9f;
+  --success: #7dd87f;
+  --glow-1: #9c5f33;
+  --glow-2: #5f6b44;
+}
+
+/* --- Sorbet -----------------------------------------------------------------
+   Widest hue range of the three, and the most overtly playful. Periwinkle
+   brand, coral IR, mint RF -- the strongest signal-type separation. */
+
+[data-theme="sorbet"] {
+  --background: #fdfcfa;
+  --foreground: #1a1720;
+  --card: #ffffff;
+  --card-foreground: #1a1720;
+  --popover: #ffffff;
+  --popover-foreground: #1a1720;
+  --primary: #5b62d6;
+  --primary-foreground: #ffffff;
+  --secondary: #efedf8;
+  --secondary-foreground: #37327a;
+  --muted: #f5f3f9;
+  --muted-foreground: #635c70;
+  --accent: #eae7f5;
+  --accent-foreground: #37327a;
+  --destructive: #d13438;
+  --destructive-foreground: #ffffff;
+  --border: #e7e3ef;
+  --input: #dfdaec;
+  --ring: #5b62d6;
+  --ir: #c1462c;
+  --rf: #17796b;
+  --success: #15803d;
+  --glow-1: #c7ceff;
+  --glow-2: #ffb4a2;
+}
+
+[data-theme="sorbet"].dark {
+  --background: #14111a;
+  --foreground: #edeaf5;
+  --card: #1c1824;
+  --card-foreground: #edeaf5;
+  --popover: #1c1824;
+  --popover-foreground: #edeaf5;
+  --primary: #c7ceff;
+  --primary-foreground: #14111a;
+  --secondary: #262030;
+  --secondary-foreground: #edeaf5;
+  --muted: #262030;
+  --muted-foreground: #a29bb2;
+  --accent: #2e2739;
+  --accent-foreground: #edeaf5;
+  --destructive: #ff9b9e;
+  --destructive-foreground: #1a0a0b;
+  --border: #322b3e;
+  --input: #393048;
+  --ring: #c7ceff;
+  --ir: #ffb4a2;
+  --rf: #a8e6cf;
+  --success: #86efac;
+  --glow-1: #5b62d6;
+  --glow-2: #c1462c;
+}
+
+/* --- Catppuccin (legacy) ----------------------------------------------------
+   The original theme, preserved for anyone who wants it. Unlike the three
+   above it keeps tinted chrome, since that character is the whole point of
+   keeping it. Skeleton shipped a single approximated ramp used for both
+   schemes; this is the real thing -- Latte for light, Mocha for dark. The
+   light-mode lavender/pink/teal are darkened from their published values,
+   which are too light to carry text on white. */
+
+[data-theme="catppuccin"] {
+  --background: #eff1f5;
+  --foreground: #4c4f69;
+  --card: #ffffff;
+  --card-foreground: #4c4f69;
+  --popover: #ffffff;
+  --popover-foreground: #4c4f69;
+  --primary: #4c5fd7;
+  --primary-foreground: #ffffff;
+  --secondary: #e6e9ef;
+  --secondary-foreground: #4c4f69;
+  --muted: #e6e9ef;
+  /* Latte's subtext1 rather than subtext0 -- subtext0 (#6c6f85) lands at
+     4.37:1 on this background, just under AA. */
+  --muted-foreground: #5c5f77;
+  --accent: #dce0e8;
+  --accent-foreground: #4c4f69;
+  --destructive: #d20f39;
+  --destructive-foreground: #ffffff;
+  --border: #dce0e8;
+  --input: #ccd0da;
+  --ring: #4c5fd7;
+  --ir: #c13fa0;
+  --rf: #147d82;
+  --success: #2f7d1f;
+  --glow-1: #7287fd;
+  --glow-2: #ea76cb;
+}
+
+[data-theme="catppuccin"].dark {
+  --background: #1e1e2e;
+  --foreground: #cdd6f4;
+  --card: #252539;
+  --card-foreground: #cdd6f4;
+  --popover: #252539;
+  --popover-foreground: #cdd6f4;
+  --primary: #b4befe;
+  --primary-foreground: #1e1e2e;
+  --secondary: #313244;
+  --secondary-foreground: #cdd6f4;
+  --muted: #313244;
+  --muted-foreground: #a6adc8;
+  --accent: #3a3c51;
+  --accent-foreground: #cdd6f4;
+  --destructive: #f38ba8;
+  --destructive-foreground: #1e1e2e;
+  --border: #45475a;
+  --input: #45475a;
+  --ring: #b4befe;
+  --ir: #f5c2e7;
+  --rf: #94e2d5;
+  --success: #a6e3a1;
+  --glow-1: #b4befe;
+  --glow-2: #f5c2e7;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Switching palette recolours most of the page at once. Without this it
+     snaps; with it the swap reads as intentional. Scoped to colour only so
+     it never interferes with layout or the dialog entrance animations, and
+     dropped entirely under reduced-motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    body,
+    body * {
+      transition:
+        background-color 200ms ease,
+        border-color 200ms ease,
+        color 200ms ease;
+    }
+  }
+}
+
+/* Utility for the press-feedback micro-interaction, applied to command rows
+   and the card-style pickers. Buttons get this from shadcn's own base. */
+@utility press {
+  @apply motion-safe:transition-transform motion-safe:active:scale-[0.98];
+}

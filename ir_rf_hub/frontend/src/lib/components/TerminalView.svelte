@@ -29,7 +29,13 @@
   class="h-45 overflow-y-auto rounded-lg bg-neutral-950 p-3 font-mono text-xs whitespace-pre text-green-400"
 >
   {#if captures.length === 0}
-    <p class="m-0 text-neutral-500 italic">waiting for signal&hellip;</p>
+    <p class="m-0 flex items-center gap-1 text-neutral-500">
+      listening for signal
+      <span
+        class="inline-block h-3.5 w-1.5 bg-green-400/80 motion-safe:animate-pulse"
+        aria-hidden="true"
+      ></span>
+    </p>
   {/if}
   {#each captures as capture, i (i)}
     <div class="flex gap-2 leading-relaxed">
