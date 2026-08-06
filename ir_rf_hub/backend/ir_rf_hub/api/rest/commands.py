@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from ir_rf_hub.api.rest.devices import _to_summary
 from ir_rf_hub.db.models import Command, DeviceEntity, DeviceRole, EspDevice, SignalDomain, SignalType
 from ir_rf_hub.db.session import get_session
 from ir_rf_hub.esphome.connection import DeviceUnreachableError
@@ -12,7 +14,6 @@ from ir_rf_hub.esphome.device_manager import device_manager
 from ir_rf_hub.esphome.device_session import DeviceBusyTimeoutError
 from ir_rf_hub.events import Event, event_bus
 from ir_rf_hub.schemas import CommandDetail, CommandSummary, EspDeviceSummary
-from ir_rf_hub.api.rest.devices import _to_summary
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
 
@@ -152,11 +153,63 @@ async def candidate_devices(command_id: str, session: AsyncSession = Depends(get
         .join(DeviceEntity, DeviceEntity.device_id == EspDevice.id)
         .where(DeviceEntity.domain == domain, DeviceEntity.role == DeviceRole.tx)
         .distinct()
+        .options(selectinload(EspDevice.entities))
     )
     devices = result.scalars().all()
-    for d in devices:
-        await session.refresh(d, attribute_names=["entities"])
     return [_to_summary(d) for d in devices]
+
+
+async def _fire_signal(
+    device_session,
+    *,
+    domain: SignalDomain,
+    tx_key: int,
+    carrier_frequency_hz: int,
+    raw_timings: list[int],
+    repeat_count: int,
+    repeat_timings: list[int] | None,
+) -> None:
+    """Shared by fire_command (a saved Command) and test_fire (an
+    in-progress, unsaved payload from the raw editor) -- same two-shape
+    firing semantics either way, see fire_command's original inline
+    comment for why the leader/repeat split isn't `timings x repeat_count`
+    twice over.
+    """
+    if repeat_timings is None:
+        await device_session.transmit(
+            domain=domain,
+            tx_key=tx_key,
+            timings=raw_timings,
+            carrier_frequency_hz=carrier_frequency_hz,
+            repeat_count=repeat_count,
+        )
+    else:
+        await device_session.transmit(
+            domain=domain, tx_key=tx_key, timings=raw_timings, carrier_frequency_hz=carrier_frequency_hz, repeat_count=1
+        )
+        if repeat_count > 1:
+            await device_session.transmit(
+                domain=domain,
+                tx_key=tx_key,
+                timings=repeat_timings,
+                carrier_frequency_hz=carrier_frequency_hz,
+                repeat_count=repeat_count - 1,
+            )
+
+
+async def _get_tx_entity(device: EspDevice, domain: SignalDomain, session: AsyncSession) -> DeviceEntity:
+    entity = (
+        await session.execute(
+            select(DeviceEntity).where(
+                DeviceEntity.device_id == device.id,
+                DeviceEntity.domain == domain,
+                DeviceEntity.role == DeviceRole.tx,
+            )
+        )
+    ).scalars().first()
+    if entity is None:
+        raise HTTPException(400, f"Device {device.name} has no {domain.value} transmitter")
+    return entity
 
 
 @router.post("/{command_id}/fire", status_code=204)
@@ -187,55 +240,62 @@ async def fire_command(command_id: str, payload: FireRequest, session: AsyncSess
     if device is None:
         raise HTTPException(404, "Device not found")
 
-    entity = (
-        await session.execute(
-            select(DeviceEntity).where(
-                DeviceEntity.device_id == device.id,
-                DeviceEntity.domain == domain,
-                DeviceEntity.role == DeviceRole.tx,
-            )
-        )
-    ).scalars().first()
-    if entity is None:
-        raise HTTPException(400, f"Device {device.name} has no {command.type.value.upper()} transmitter")
+    entity = await _get_tx_entity(device, domain, session)
 
     try:
         device_session = await device_manager.connect(session, device)
-        if command.repeat_timings is None:
-            # Plain single-shape command -- one firmware-level burst,
-            # repeated repeat_count times. Unchanged from before
-            # repeat_timings existed.
-            await device_session.transmit(
-                domain=domain,
-                tx_key=entity.esphome_key,
-                timings=command.raw_timings,
-                carrier_frequency_hz=command.carrier_frequency_hz,
-                repeat_count=command.repeat_count,
-            )
-        else:
-            # Two-shape command (see esphome/signal_shapes.py): the
-            # leader fires exactly once, then the repeat shape fires
-            # (repeat_count - 1) more times -- mirroring a real remote
-            # (send the full frame once, then a distinct repeat signal
-            # while held). Deliberately NOT `raw_timings x repeat_count`
-            # followed by `repeat_timings x repeat_count` -- that would
-            # double the total number of activations instead of just
-            # picking which shape represents each one.
-            await device_session.transmit(
-                domain=domain,
-                tx_key=entity.esphome_key,
-                timings=command.raw_timings,
-                carrier_frequency_hz=command.carrier_frequency_hz,
-                repeat_count=1,
-            )
-            if command.repeat_count > 1:
-                await device_session.transmit(
-                    domain=domain,
-                    tx_key=entity.esphome_key,
-                    timings=command.repeat_timings,
-                    carrier_frequency_hz=command.carrier_frequency_hz,
-                    repeat_count=command.repeat_count - 1,
-                )
+        await _fire_signal(
+            device_session,
+            domain=domain,
+            tx_key=entity.esphome_key,
+            carrier_frequency_hz=command.carrier_frequency_hz,
+            raw_timings=command.raw_timings,
+            repeat_count=command.repeat_count,
+            repeat_timings=command.repeat_timings,
+        )
+    except DeviceUnreachableError as exc:
+        raise HTTPException(502, f"Could not reach device: {exc}") from exc
+    except DeviceBusyTimeoutError as exc:
+        raise HTTPException(504, str(exc)) from exc
+
+
+class TestFireRequest(BaseModel):
+    """Fires an in-progress payload straight from the raw editor, without
+    saving it as (or already existing as) a Command first -- lets you
+    verify a hand-edited signal actually does something before committing
+    to it. Intentionally mirrors CommandCreateRequest's raw-signal fields
+    rather than reusing it: default_device_id/recorded_from_device_id have
+    no meaning for a payload that was never saved.
+    """
+
+    type: str  # "ir" | "rf"
+    device_id: str
+    raw_timings: list[int]
+    carrier_frequency_hz: int = 0
+    repeat_count: int = 1
+    repeat_timings: list[int] | None = None
+
+
+@router.post("/test-fire", status_code=204)
+async def test_fire(payload: TestFireRequest, session: AsyncSession = Depends(get_session)) -> None:
+    domain = _domain_for_type(payload.type)
+    device = await session.get(EspDevice, payload.device_id)
+    if device is None:
+        raise HTTPException(404, "Device not found")
+
+    entity = await _get_tx_entity(device, domain, session)
+
+    try:
+        device_session = await device_manager.connect(session, device)
+        await _fire_signal(
+            device_session,
+            domain=domain,
+            tx_key=entity.esphome_key,
+            carrier_frequency_hz=payload.carrier_frequency_hz,
+            raw_timings=payload.raw_timings,
+            repeat_count=payload.repeat_count,
+            repeat_timings=payload.repeat_timings,
+        )
     except DeviceUnreachableError as exc:
         raise HTTPException(502, f"Could not reach device: {exc}") from exc
     except DeviceBusyTimeoutError as exc:

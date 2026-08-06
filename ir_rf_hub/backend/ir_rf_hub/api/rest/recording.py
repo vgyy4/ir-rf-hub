@@ -18,12 +18,17 @@ from ir_rf_hub.db.session import get_session
 from ir_rf_hub.esphome.connection import DeviceUnreachableError
 from ir_rf_hub.esphome.device_manager import device_manager
 from ir_rf_hub.esphome.device_session import DeviceBusyRecordingError, DeviceBusyTimeoutError
+from ir_rf_hub.esphome.protocol_decode import decode_signal
+from ir_rf_hub.esphome.remote_database import lookup_bundled, lookup_bundled_rf
+from ir_rf_hub.esphome.rf_protocol_decode import decode_rf_signal
 from ir_rf_hub.esphome.signal_shapes import cluster_captures, detect_multi_shape_protocol
 from ir_rf_hub.schemas import (
+    DecodedSignalSchema,
     DetectedProtocolSchema,
     RecordingSessionResponse,
     RecordingStartRequest,
     RecordingStopResponse,
+    RemoteMatchSchema,
     ShapeCandidateSchema,
 )
 
@@ -33,6 +38,37 @@ router = APIRouter(prefix="/api/recording", tags=["recording"])
 # interactive (one open modal), so an in-memory registry is enough -- it
 # doesn't need to survive a backend restart, unlike Command storage.
 _session_devices: dict[str, str] = {}
+
+
+def _identify(timings: list[int]) -> tuple[DecodedSignalSchema | None, list[RemoteMatchSchema]]:
+    """Best-effort decode + bundled-database lookup for a resolved
+    capture, trying IR decoders then RF decoders. Never raises -- a shape
+    neither protocol_decode.py nor rf_protocol_decode.py recognizes just
+    means both come back empty, which is the normal case (most captures),
+    not an error."""
+    ir_decoded = decode_signal(timings)
+    if ir_decoded is not None:
+        matches = [
+            RemoteMatchSchema(source=m.source, category=m.category, brand=m.brand, model=m.model, button=m.button)
+            for m in lookup_bundled(ir_decoded)
+        ]
+        schema = DecodedSignalSchema(
+            protocol=ir_decoded.protocol, address=ir_decoded.address, command=ir_decoded.command
+        )
+        return schema, matches
+
+    rf_decoded = decode_rf_signal(timings)
+    if rf_decoded is not None:
+        matches = [
+            RemoteMatchSchema(source=m.source, category=m.category, brand=m.brand, model=m.model, button=m.button)
+            for m in lookup_bundled_rf(rf_decoded)
+        ]
+        schema = DecodedSignalSchema(
+            protocol=rf_decoded.protocol, key_hex=rf_decoded.key_hex, bit_count=rf_decoded.bit_count
+        )
+        return schema, matches
+
+    return None, []
 
 
 def _domain_for_type(type_: str) -> SignalDomain:
@@ -113,18 +149,26 @@ async def stop_recording(session_id: str) -> RecordingStopResponse:
     clusters = cluster_captures(finished.captures)
 
     if len(clusters) == 1:
+        decoded, matches = _identify(clusters[0].timings)
         return RecordingStopResponse(
-            session_id=session_id, capture_count=finished.capture_count, timings=clusters[0].timings
+            session_id=session_id,
+            capture_count=finished.capture_count,
+            timings=clusters[0].timings,
+            decoded=decoded,
+            remote_matches=matches,
         )
 
     detected = detect_multi_shape_protocol(clusters)
     if detected is not None:
+        decoded, matches = _identify(detected.leader_timings)
         return RecordingStopResponse(
             session_id=session_id,
             capture_count=finished.capture_count,
             detected_protocol=DetectedProtocolSchema(
                 name=detected.name, leader_timings=detected.leader_timings, repeat_timings=detected.repeat_timings
             ),
+            decoded=decoded,
+            remote_matches=matches,
         )
 
     return RecordingStopResponse(

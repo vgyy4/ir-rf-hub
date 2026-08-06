@@ -139,7 +139,7 @@ class FakeEspHomeServer:
             self._server.close()
             await self._server.wait_closed()
 
-    async def __aenter__(self) -> "FakeEspHomeServer":
+    async def __aenter__(self) -> FakeEspHomeServer:
         await self.start()
         return self
 

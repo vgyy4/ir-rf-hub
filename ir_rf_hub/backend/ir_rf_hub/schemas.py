@@ -127,6 +127,35 @@ class DetectedProtocolSchema(BaseModel):
     repeat_timings: list[int]
 
 
+class DecodedSignalSchema(BaseModel):
+    """Structural protocol decode of the resolved capture -- "this is NEC,
+    address 0x04, command 0x08" for IR (esphome/protocol_decode.py), or
+    "this is Princeton, key ..., 24 bits" for RF (esphome/
+    rf_protocol_decode.py) -- independent of and unrelated to
+    remote_matches below. address/command are IR-only (0 for an RF
+    decode); key_hex/bit_count are RF-only (None for an IR decode)."""
+
+    protocol: str
+    address: int = 0
+    command: int = 0
+    key_hex: str | None = None
+    bit_count: int | None = None
+
+
+class RemoteMatchSchema(BaseModel):
+    """One candidate name suggestion for the just-recorded signal, from
+    matching its decoded (protocol, address, command) against the bundled
+    remote database (Flipper-IRDB, IRDB, and a Sub-GHz RF source, merged
+    and deduplicated -- see esphome/remote_database_build.py) -- always
+    `source="bundled"` today."""
+
+    source: str
+    category: str
+    brand: str
+    model: str
+    button: str
+
+
 class RecordingStopResponse(BaseModel):
     session_id: str
     capture_count: int
@@ -141,6 +170,11 @@ class RecordingStopResponse(BaseModel):
     timings: list[int] | None = None
     detected_protocol: DetectedProtocolSchema | None = None
     shape_candidates: list[ShapeCandidateSchema] | None = None
+    # Best-effort extras computed from `timings` or detected_protocol's
+    # leader, when either is available -- never set when the response only
+    # has shape_candidates (nothing's resolved to decode yet).
+    decoded: DecodedSignalSchema | None = None
+    remote_matches: list[RemoteMatchSchema] = Field(default_factory=list)
 
 
 class CommandSummary(BaseModel):
@@ -176,6 +210,22 @@ class CommandDetail(CommandSummary):
     # repeat_timings was auto-detected rather than manually chosen by the
     # user from shape_candidates. Never read by the firing path.
     repeat_protocol: str | None = None
+
+
+class RemoteSearchResultSchema(BaseModel):
+    """One candidate from searching the bundled remote database (see
+    esphome/remote_database.py) -- already fully encoded and ready to
+    test-fire or save as-is via the normal test-fire/create-command
+    endpoints, no extra round-trip needed to resolve it into a real
+    signal."""
+
+    category: str
+    brand: str
+    model: str
+    button: str
+    raw_timings: list[int]
+    carrier_frequency_hz: int
+    repeat_count: int
 
 
 class HostNetworkSchema(BaseModel):

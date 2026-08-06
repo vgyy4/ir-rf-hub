@@ -313,6 +313,62 @@ async def test_fire_two_shape_command_with_repeat_count_one_skips_the_repeat_sha
     assert fake_device.transmitted[0].repeat_count == 1
 
 
+async def test_test_fire_reaches_fake_server_without_saving_a_command(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    device = (
+        await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
+    ).json()
+
+    resp = await client.post(
+        "/api/commands/test-fire",
+        json={
+            "type": "ir",
+            "device_id": device["id"],
+            "raw_timings": [9000, -4500, 560, -560],
+            "carrier_frequency_hz": 38000,
+        },
+    )
+    assert resp.status_code == 204
+    assert len(fake_device.transmitted) == 1
+    assert fake_device.transmitted[0].timings == [9000, -4500, 560, -560]
+    assert fake_device.transmitted[0].carrier_frequency == 38000
+    # Nothing was persisted -- this is purely a firmware call.
+    assert (await client.get("/api/commands")).json() == []
+
+
+async def test_test_fire_two_shape_payload_sends_leader_once_then_repeat_shape(
+    client: httpx.AsyncClient, fake_device: FakeEspHomeServer
+):
+    device = (
+        await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
+    ).json()
+
+    resp = await client.post(
+        "/api/commands/test-fire",
+        json={
+            "type": "ir",
+            "device_id": device["id"],
+            "raw_timings": [9000, -4500, 560, -560],
+            "repeat_timings": [9000, -2250, 560],
+            "repeat_count": 3,
+        },
+    )
+    assert resp.status_code == 204
+    assert len(fake_device.transmitted) == 2
+    assert fake_device.transmitted[0].repeat_count == 1
+    assert fake_device.transmitted[1].timings == [9000, -2250, 560]
+    assert fake_device.transmitted[1].repeat_count == 2
+
+
+async def test_test_fire_unknown_device_returns_404(client: httpx.AsyncClient):
+    resp = await client.post(
+        "/api/commands/test-fire",
+        json={"type": "ir", "device_id": "does-not-exist", "raw_timings": [1, -1]},
+    )
+    assert resp.status_code == 404
+
+
 async def test_delete_command(client: httpx.AsyncClient):
     created = (
         await client.post("/api/commands", json={"name": "Delete Me", "type": "rf", "raw_timings": [1, -1]})

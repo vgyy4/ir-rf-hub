@@ -3,8 +3,13 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import * as Alert from "$lib/components/ui/alert/index.js";
+  import DevicePicker from "../DevicePicker.svelte";
   import { editWizard } from "../../stores/edit.svelte";
+  import { devicesStore } from "../../stores/devices.svelte";
+  import { devicesWithTransmitter } from "../../api";
   import { haptics } from "../../haptics";
+  import CheckIcon from "@lucide/svelte/icons/check";
+  import RadioTowerIcon from "@lucide/svelte/icons/radio-tower";
 
   const wizard = editWizard;
 
@@ -28,6 +33,22 @@
   async function saveAsNew() {
     await wizard.saveAsNewCommand();
     if (wizard.error) haptics.error();
+    else haptics.success();
+  }
+
+  const testFireDevices = $derived(
+    wizard.command ? devicesWithTransmitter(devicesStore.items, wizard.command.type) : [],
+  );
+
+  function toggleTestFirePicker() {
+    haptics.tap();
+    wizard.showTestFirePicker = !wizard.showTestFirePicker;
+    wizard.testFireError = null;
+  }
+
+  async function handleTestFireDevicePicked(deviceId: string) {
+    await wizard.testFire(deviceId);
+    if (wizard.testFireError) haptics.error();
     else haptics.success();
   }
 </script>
@@ -71,6 +92,36 @@
       <span class="text-muted-foreground text-sm">Repeat count</span>
       <Input type="number" class="mt-1 w-32" min="1" bind:value={wizard.repeatCount} />
     </label>
+
+    <div class="mt-3">
+      <Button variant="outline" size="sm" onclick={toggleTestFirePicker}>
+        {#if wizard.testFireSuccess}
+          <CheckIcon class="text-success" />
+          Sent
+        {:else}
+          <RadioTowerIcon />
+          Test fire
+        {/if}
+      </Button>
+      <span class="text-muted-foreground ml-2 text-xs">
+        Sends what's in the boxes above right now, without saving it first.
+      </span>
+
+      {#if wizard.showTestFirePicker}
+        <div class="bg-card border-border mt-2 space-y-2 rounded-lg border p-3">
+          {#if wizard.testFireError}
+            <Alert.Root variant="destructive">
+              <Alert.Description>{wizard.testFireError}</Alert.Description>
+            </Alert.Root>
+          {/if}
+          <DevicePicker
+            devices={testFireDevices}
+            selectedId={null}
+            onSelect={handleTestFireDevicePicked}
+          />
+        </div>
+      {/if}
+    </div>
 
     {#if wizard.error}
       <Alert.Root variant="destructive" class="mt-3">

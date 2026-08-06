@@ -174,7 +174,7 @@ class DeviceSession:
         conn = self._require_connection()
         try:
             await asyncio.wait_for(self._device_lock.acquire(), timeout=RECORD_START_LOCK_TIMEOUT_S)
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             raise DeviceBusyTimeoutError(f"Device {self.config.device_id} busy transmitting") from exc
 
         session = RecordingSession(id=str(uuid.uuid4()), domain=domain, rx_key=rx_key)
@@ -239,7 +239,7 @@ class DeviceSession:
         conn = self._require_connection()
         try:
             await asyncio.wait_for(self._device_lock.acquire(), timeout=TRANSMIT_LOCK_TIMEOUT_S)
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             raise DeviceBusyTimeoutError(f"Device {self.config.device_id} busy") from exc
 
         self._set_state(DeviceSessionState.tx_active)

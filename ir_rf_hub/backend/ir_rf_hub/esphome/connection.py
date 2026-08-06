@@ -96,7 +96,7 @@ class EspHomeConnection:
             raise DeviceEncryptionKeyInvalidError(str(exc)) from exc
         except api.EncryptionPlaintextAPIError as exc:
             raise DeviceUnexpectedEncryptionError(str(exc)) from exc
-        except (asyncio.TimeoutError, api.APIConnectionError) as exc:
+        except (TimeoutError, api.APIConnectionError) as exc:
             raise DeviceUnreachableError(str(exc)) from exc
         self._receive_unsub = self._client.subscribe_infrared_rf_receive(self._on_receive_event)
         self._connected = True
@@ -131,7 +131,7 @@ class EspHomeConnection:
     async def device_info(self) -> api.DeviceInfo:
         try:
             return await asyncio.wait_for(self._client.device_info(), timeout=self._connect_timeout_s)
-        except (asyncio.TimeoutError, api.APIConnectionError) as exc:
+        except (TimeoutError, api.APIConnectionError) as exc:
             raise DeviceUnreachableError(str(exc)) from exc
 
     async def list_entities(self) -> list[DiscoveredEntity]:
@@ -145,7 +145,7 @@ class EspHomeConnection:
             entities, _services = await asyncio.wait_for(
                 self._client.list_entities_services(), timeout=self._connect_timeout_s
             )
-        except (asyncio.TimeoutError, api.APIConnectionError) as exc:
+        except (TimeoutError, api.APIConnectionError) as exc:
             raise DeviceUnreachableError(str(exc)) from exc
 
         discovered: list[DiscoveredEntity] = []

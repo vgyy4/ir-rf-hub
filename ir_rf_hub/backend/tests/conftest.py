@@ -23,6 +23,11 @@ async def _isolated_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     schema explicitly (see Phase 1's device-session tests).
     """
     monkeypatch.setattr(settings, "data_dir", tmp_path)
+    # See config.py's own comment: without this, every test spinning up
+    # the app's lifespan would trigger a real `git clone` against GitHub
+    # (a fresh tmp_path data_dir has no meta.json, so the updater always
+    # thinks a refresh is due).
+    monkeypatch.setattr(settings, "disable_remote_database_updater", True)
     await reset_engine_for_tests()
     yield
     await reset_engine_for_tests()

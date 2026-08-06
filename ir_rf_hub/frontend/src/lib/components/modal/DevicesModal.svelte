@@ -2,7 +2,9 @@
   import Modal from "./Modal.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
+  import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import * as Alert from "$lib/components/ui/alert/index.js";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
   import { devicesStore } from "../../stores/devices.svelte";
   import {
     createDevice,
@@ -10,17 +12,22 @@
     discoverDevices,
     getHostNetwork,
     testDevice,
+    updateDevice,
     type DiscoveredDevice,
+    type EspDeviceSummary,
     type HostNetwork,
+    type UpdateDeviceRequest,
   } from "../../api";
   import { copyElementText } from "../../clipboard";
   import { haptics } from "../../haptics";
   import PlusIcon from "@lucide/svelte/icons/plus";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
+  import PencilIcon from "@lucide/svelte/icons/pencil";
   import RadarIcon from "@lucide/svelte/icons/radar";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import CheckIcon from "@lucide/svelte/icons/check";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+  import InfoIcon from "@lucide/svelte/icons/info";
 
   // Matches DevicePicker.svelte's convention for "reachable enough to
   // treat as online" -- anything mid-transmit/receive still counts.
@@ -38,10 +45,27 @@
   let host = $state("");
   let port = $state(6053);
   let encryptionKey = $state("");
+  let password = $state("");
   let busy = $state(false);
   let error = $state<string | null>(null);
   let discovered = $state<DiscoveredDevice[]>([]);
   let discovering = $state(false);
+
+  let deleteConfirmDevice = $state<EspDeviceSummary | null>(null);
+  let deleteBusy = $state(false);
+  let deleteError = $state<string | null>(null);
+
+  let editingDevice = $state<EspDeviceSummary | null>(null);
+  let editName = $state("");
+  let editHost = $state("");
+  let editPort = $state(6053);
+  let editEncryptionKey = $state("");
+  let editPassword = $state("");
+  let editTxSettleMs = $state(150);
+  let editRxStopSettleMs = $state(150);
+  let editConnectTimeoutS = $state(10);
+  let editBusy = $state(false);
+  let editError = $state<string | null>(null);
 
   // Set right after a device is successfully added, and shown once as a
   // tip -- not gating the Add itself (that was an extra click on every
@@ -114,6 +138,8 @@
       discovered = [];
       testError = null;
       justAdded = null;
+      deleteConfirmDevice = null;
+      editingDevice = null;
     }
   });
 
@@ -136,6 +162,7 @@
     showAddForm = true;
     discovered = [];
     justAdded = null;
+    editingDevice = null;
   }
 
   function resetForm() {
@@ -143,6 +170,7 @@
     host = "";
     port = 6053;
     encryptionKey = "";
+    password = "";
     showAddForm = false;
     error = null;
   }
@@ -157,6 +185,7 @@
         host: host.trim(),
         port,
         encryption_key: encryptionKey.trim() || null,
+        password: password.trim() || null,
       });
       justAdded = { name: created.name, host: created.host };
       yamlCopied = false;
@@ -171,10 +200,78 @@
     }
   }
 
-  async function handleDelete(id: string) {
+  function handleDeleteRequest(device: EspDeviceSummary) {
     haptics.tap();
-    await deleteDevice(id);
-    await devicesStore.refresh();
+    deleteError = null;
+    deleteConfirmDevice = device;
+  }
+
+  async function handleDeleteConfirmed() {
+    if (!deleteConfirmDevice) return;
+    deleteBusy = true;
+    deleteError = null;
+    try {
+      await deleteDevice(deleteConfirmDevice.id);
+      await devicesStore.refresh();
+      deleteConfirmDevice = null;
+      haptics.success();
+    } catch (e) {
+      deleteError = String(e);
+      haptics.error();
+    } finally {
+      deleteBusy = false;
+    }
+  }
+
+  function openEdit(device: EspDeviceSummary) {
+    haptics.tap();
+    showAddForm = false;
+    justAdded = null;
+    editingDevice = device;
+    editName = device.name;
+    editHost = device.host;
+    editPort = device.port;
+    editEncryptionKey = "";
+    editPassword = "";
+    editTxSettleMs = device.tx_settle_ms;
+    editRxStopSettleMs = device.rx_stop_settle_ms;
+    editConnectTimeoutS = device.connect_timeout_s;
+    editError = null;
+  }
+
+  function closeEdit() {
+    editingDevice = null;
+  }
+
+  async function handleEditSave() {
+    if (!editingDevice || !editName.trim() || !editHost.trim()) return;
+    editBusy = true;
+    editError = null;
+    try {
+      // encryption_key / password are only sent when the user actually typed
+      // something -- an empty field means "leave the stored secret alone",
+      // not "clear it" (the backend treats any key present in the request
+      // body, even blank, as an explicit change).
+      const payload: UpdateDeviceRequest = {
+        name: editName.trim(),
+        host: editHost.trim(),
+        port: editPort,
+        tx_settle_ms: editTxSettleMs,
+        rx_stop_settle_ms: editRxStopSettleMs,
+        connect_timeout_s: editConnectTimeoutS,
+      };
+      if (editEncryptionKey.trim()) payload.encryption_key = editEncryptionKey.trim();
+      if (editPassword.trim()) payload.password = editPassword.trim();
+      await updateDevice(editingDevice.id, payload);
+      await devicesStore.refresh();
+      editingDevice = null;
+      haptics.success();
+    } catch (e) {
+      editError = String(e);
+      haptics.error();
+    } finally {
+      editBusy = false;
+    }
   }
 
   let testingDeviceId = $state<string | null>(null);
@@ -213,6 +310,24 @@
       <RadarIcon class={discovering ? "motion-safe:animate-spin" : undefined} />
       Scan for devices
     </Button>
+  </div>
+
+  <div class="text-muted-foreground bg-muted/40 border-border mb-3 flex items-start gap-2 rounded-lg border p-2.5 text-xs">
+    <InfoIcon class="mt-0.5 size-3.5 shrink-0" />
+    <p>
+      Each device needs the <code>ir_rf_proxy</code> component in its ESPHome YAML, on top of a
+      <code>remote_receiver</code>/<code>remote_transmitter</code> config -- it won't show up with any
+      usable entities otherwise. See the
+      <a
+        class="text-foreground underline underline-offset-2"
+        href="https://github.com/vgyy4/ir-rf-hub/blob/main/ir_rf_hub/DOCS.md"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Documentation tab or DOCS.md
+      </a>
+      for a copy-paste example.
+    </p>
   </div>
 
   {#if discovered.length > 0}
@@ -268,6 +383,15 @@
     </div>
   {/if}
 
+  {#if devicesStore.loading && devicesStore.items.length === 0}
+    <ul class="mb-3 flex flex-col gap-2" aria-label="Loading devices">
+      {#each [0, 1] as i (i)}
+        <li class="bg-card border-border flex items-center gap-3 rounded-lg border p-3">
+          <Skeleton class="h-8 flex-1" />
+        </li>
+      {/each}
+    </ul>
+  {:else}
   <ul class="mb-3 flex max-h-64 flex-col gap-2 overflow-y-auto">
     {#each devicesStore.items as device (device.id)}
       <li class="bg-card border-border flex items-center justify-between gap-2 rounded-lg border p-3">
@@ -307,25 +431,76 @@
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Edit {device.name}"
+            onclick={() => openEdit(device)}
+          >
+            <PencilIcon />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             class="hover:text-destructive hover:bg-destructive/10"
             aria-label="Remove {device.name}"
-            onclick={() => handleDelete(device.id)}
+            onclick={() => handleDeleteRequest(device)}
           >
             <Trash2Icon />
           </Button>
         </div>
       </li>
     {:else}
-      <p class="text-muted-foreground text-sm italic">No devices added yet.</p>
+      <p class="text-muted-foreground text-sm italic">
+        No devices added yet -- discover one above, or add one manually below. Remember it'll need
+        <code>ir_rf_proxy</code> in its YAML first (see the note above).
+      </p>
     {/each}
   </ul>
+  {/if}
 
-  {#if showAddForm}
+  {#if editingDevice}
+    <div class="bg-card border-border space-y-2 rounded-lg border p-3">
+      <p class="text-muted-foreground text-xs tracking-wide uppercase">Editing {editingDevice.name}</p>
+      <Input placeholder="Name" bind:value={editName} />
+      <Input placeholder="Host (IP or .local)" bind:value={editHost} />
+      <Input type="number" placeholder="Port" bind:value={editPort} />
+      <Input placeholder="Encryption key (leave blank to keep current)" bind:value={editEncryptionKey} />
+      <Input placeholder="Password (leave blank to keep current)" bind:value={editPassword} />
+      <div class="grid grid-cols-3 gap-2">
+        <label class="space-y-1 text-xs">
+          <span class="text-muted-foreground">TX settle (ms)</span>
+          <Input type="number" bind:value={editTxSettleMs} />
+        </label>
+        <label class="space-y-1 text-xs">
+          <span class="text-muted-foreground">RX settle (ms)</span>
+          <Input type="number" bind:value={editRxStopSettleMs} />
+        </label>
+        <label class="space-y-1 text-xs">
+          <span class="text-muted-foreground">Connect timeout (s)</span>
+          <Input type="number" bind:value={editConnectTimeoutS} />
+        </label>
+      </div>
+      {#if editError}
+        <Alert.Root variant="destructive">
+          <Alert.Description>{editError}</Alert.Description>
+        </Alert.Root>
+      {/if}
+      <div class="flex justify-end gap-2">
+        <Button variant="secondary" size="sm" onclick={closeEdit}>Cancel</Button>
+        <Button
+          size="sm"
+          disabled={editBusy || !editName.trim() || !editHost.trim()}
+          onclick={handleEditSave}
+        >
+          Save
+        </Button>
+      </div>
+    </div>
+  {:else if showAddForm}
     <div class="bg-card border-border space-y-2 rounded-lg border p-3">
       <Input placeholder="Name" bind:value={name} />
       <Input placeholder="Host (IP or .local)" bind:value={host} />
       <Input type="number" placeholder="Port" bind:value={port} />
       <Input placeholder="Encryption key (only if this ESP uses one)" bind:value={encryptionKey} />
+      <Input placeholder="Password (only if this ESP uses one)" bind:value={password} />
       {#if error}
         <Alert.Root variant="destructive">
           <Alert.Description>{error}</Alert.Description>
@@ -351,4 +526,35 @@
       Add device manually
     </Button>
   {/if}
+
+  <AlertDialog.Root
+    open={deleteConfirmDevice !== null}
+    onOpenChange={(next) => {
+      if (!next) deleteConfirmDevice = null;
+    }}
+  >
+    <AlertDialog.Content>
+      <AlertDialog.Header>
+        <AlertDialog.Title>Remove "{deleteConfirmDevice?.name}"?</AlertDialog.Title>
+        <AlertDialog.Description>
+          This removes the device and its discovered entities from the App. Commands recorded from it
+          stay in your library, but you'll need to re-add the device before you can fire or re-record
+          through it.
+        </AlertDialog.Description>
+      </AlertDialog.Header>
+      {#if deleteError}
+        <Alert.Root variant="destructive">
+          <Alert.Description>{deleteError}</Alert.Description>
+        </Alert.Root>
+      {/if}
+      <AlertDialog.Footer>
+        <AlertDialog.Cancel disabled={deleteBusy}>Cancel</AlertDialog.Cancel>
+        <!-- A plain Button rather than AlertDialog.Action: Action auto-closes on
+             click, which would swallow the error message when a delete fails. -->
+        <Button variant="destructive" disabled={deleteBusy} onclick={handleDeleteConfirmed}>
+          Remove
+        </Button>
+      </AlertDialog.Footer>
+    </AlertDialog.Content>
+  </AlertDialog.Root>
 </Modal>
