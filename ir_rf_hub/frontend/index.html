@@ -1,9 +1,44 @@
 <!doctype html>
-<html lang="en" data-theme="catppuccin">
+<html lang="en" data-theme="seaglass">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IR/RF Command Hub</title>
+    <script>
+      // Stamp palette + colour scheme before first paint. The theme store
+      // (src/lib/stores/theme.svelte.ts) is the real owner of this logic and
+      // re-applies it on import, but module scripts run after the document
+      // parses -- late enough to flash the wrong theme. This mirrors
+      // ThemeStore.apply() closely enough to cover that gap, and is
+      // deliberately defensive: any failure just leaves the markup defaults.
+      (function () {
+        try {
+          var palettes = ["seaglass", "meadow", "sorbet", "catppuccin"];
+          var palette = localStorage.getItem("ir-rf-hub:palette");
+          if (palettes.indexOf(palette) !== -1) {
+            document.documentElement.dataset.theme = palette;
+          }
+
+          var mode = localStorage.getItem("ir-rf-hub:theme-mode") || "auto";
+          var dark;
+          if (mode === "dark" || mode === "light") {
+            dark = mode === "dark";
+          } else {
+            // Auto: prefer Home Assistant's own picker, fall back to the OS.
+            var ha = null;
+            try {
+              var raw = localStorage.getItem("selectedTheme");
+              if (raw) {
+                var parsed = JSON.parse(raw);
+                if (typeof parsed.dark === "boolean") ha = parsed.dark;
+              }
+            } catch (e) {}
+            dark = ha === null ? window.matchMedia("(prefers-color-scheme: dark)").matches : ha;
+          }
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

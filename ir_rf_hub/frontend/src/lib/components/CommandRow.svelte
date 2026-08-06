@@ -1,48 +1,77 @@
 <script lang="ts">
   import type { CommandSummary } from "../api";
+  import { Button } from "$lib/components/ui/button/index.js";
   import PencilIcon from "@lucide/svelte/icons/pencil";
   import Trash2Icon from "@lucide/svelte/icons/trash-2";
+  import CheckIcon from "@lucide/svelte/icons/check";
 
   interface Props {
     command: CommandSummary;
+    /** Briefly true right after a successful send, to confirm it visually. */
+    fired?: boolean;
     onFire: (command: CommandSummary) => void;
     onEdit: (command: CommandSummary) => void;
     onDelete: (command: CommandSummary) => void;
   }
 
-  let { command, onFire, onEdit, onDelete }: Props = $props();
+  let { command, fired = false, onFire, onEdit, onDelete }: Props = $props();
 </script>
 
-<li class="card preset-filled-surface-100-900 flex items-center gap-1 p-1.5">
+<li
+  class={[
+    "bg-card border-border flex items-center gap-1 rounded-xl border p-1.5 shadow-xs",
+    "transition-[border-color,box-shadow] duration-300",
+    fired && "border-success/60 ring-success/30 ring-2",
+  ]}
+>
   <button
     type="button"
-    class="hover:preset-tonal-primary flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
+    class="press hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-3"
     onclick={() => onFire(command)}
   >
-    <span
-      class={[
-        "badge",
-        command.type === "rf" ? "preset-tonal-tertiary" : "preset-tonal-primary",
-      ].join(" ")}
-    >
-      {command.type.toUpperCase()}
-    </span>
+    <!-- The type badge swaps to a green check on a successful send, in
+         place rather than alongside: the row already has an edit and a
+         delete button, and a fourth element appearing would shift the
+         name. The badge is the same size in both states. -->
+    {#if fired}
+      <span
+        class="bg-success/15 text-success border-success/30 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-200 inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-medium"
+      >
+        <CheckIcon class="size-3" />
+        Sent
+      </span>
+    {:else}
+      <!-- Signal type rides on its own token now, not `primary`. Tonal fill so
+           the same token works as text in light and dark. -->
+      <span
+        class={[
+          "inline-flex h-5 shrink-0 items-center rounded-full border px-2 text-xs font-medium",
+          command.type === "rf"
+            ? "bg-rf/12 text-rf border-rf/25"
+            : "bg-ir/12 text-ir border-ir/25",
+        ].join(" ")}
+      >
+        {command.type.toUpperCase()}
+      </span>
+    {/if}
     <span class="font-medium">{command.name}</span>
   </button>
-  <button
-    type="button"
-    class="btn-icon hover:preset-tonal opacity-70 hover:opacity-100"
+  <Button
+    variant="ghost"
+    size="icon"
+    class="opacity-70 hover:opacity-100"
     aria-label="Edit {command.name}"
     onclick={() => onEdit(command)}
   >
-    <PencilIcon class="size-4" />
-  </button>
-  <button
-    type="button"
-    class="btn-icon hover:preset-tonal-error opacity-70 hover:opacity-100"
+    <PencilIcon />
+  </Button>
+  <Button
+    variant="ghost"
+    size="icon"
+    class="hover:text-destructive hover:bg-destructive/10 opacity-70 hover:opacity-100"
     aria-label="Delete {command.name}"
     onclick={() => onDelete(command)}
   >
-    <Trash2Icon class="size-4" />
-  </button>
+    <Trash2Icon />
+  </Button>
 </li>

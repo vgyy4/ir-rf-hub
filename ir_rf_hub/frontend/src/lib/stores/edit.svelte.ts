@@ -1,4 +1,5 @@
 import { createCommand, getCommand, updateCommand, type CommandDetail, type CommandSummary } from "../api";
+import { parseOptionalTimingsText, parseTimingsText } from "../timings";
 
 export type EditStep = "closed" | "choose-action" | "choose-default-device" | "raw-editor";
 
@@ -61,7 +62,7 @@ class EditWizard {
    * returns null if the text isn't a valid list of integers.
    */
   parseRawTimings(): number[] | null {
-    return this._parseTimingsText(this.rawTimingsText, /* allowEmpty */ false);
+    return parseTimingsText(this.rawTimingsText);
   }
 
   /** Same format, but empty text is valid here -- it means "no repeat
@@ -69,20 +70,7 @@ class EditWizard {
    * text is non-empty but not a valid list of integers.
    */
   parseRepeatTimings(): number[] | null | undefined {
-    if (this.repeatTimingsText.trim().length === 0) return null;
-    const parsed = this._parseTimingsText(this.repeatTimingsText, /* allowEmpty */ false);
-    return parsed ?? undefined;
-  }
-
-  private _parseTimingsText(text: string, allowEmpty: boolean): number[] | null {
-    const parts = text
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    if (parts.length === 0) return allowEmpty ? [] : null;
-    const nums = parts.map(Number);
-    if (nums.some((n) => !Number.isInteger(n))) return null;
-    return nums;
+    return parseOptionalTimingsText(this.repeatTimingsText);
   }
 
   async saveEdited() {

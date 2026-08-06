@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
@@ -9,8 +10,15 @@ import tailwindcss from "@tailwindcss/vite";
 // ingress proxy). Same reasoning applies to API calls -- see src/lib/api.ts.
 export default defineConfig({
   base: "./",
-  // tailwindcss() must come before svelte() -- see skeleton.dev's Vite+Svelte setup guide.
   plugins: [tailwindcss(), svelte()],
+  // shadcn-svelte's generated components import from `$lib/...`, the same
+  // alias SvelteKit provides by default. This is a plain Vite SPA, so we
+  // have to declare it ourselves (mirrored in tsconfig.json's paths).
+  resolve: {
+    alias: {
+      $lib: fileURLToPath(new URL("./src/lib", import.meta.url)),
+    },
+  },
   build: {
     outDir: "../backend/ir_rf_hub/static",
     emptyOutDir: true,
