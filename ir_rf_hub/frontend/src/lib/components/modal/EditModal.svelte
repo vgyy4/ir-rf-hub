@@ -33,7 +33,7 @@
     <div class="flex flex-col gap-2">
       <button
         type="button"
-        class="press border-border bg-card hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors outline-none focus-visible:ring-3"
+        class="press border-border bg-card hover:bg-foreground/6 focus-visible:border-ring focus-visible:ring-ring/50 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors outline-none focus-visible:ring-3"
         onclick={() => {
           haptics.tap();
           wizard.goToChooseDefaultDevice();
@@ -50,7 +50,7 @@
       </button>
       <button
         type="button"
-        class="press border-border bg-card hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors outline-none focus-visible:ring-3"
+        class="press border-border bg-card hover:bg-foreground/6 focus-visible:border-ring focus-visible:ring-ring/50 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors outline-none focus-visible:ring-3"
         onclick={() => {
           haptics.tap();
           wizard.goToRawEditor();

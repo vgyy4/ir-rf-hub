@@ -66,7 +66,7 @@
       </div>
       <Button class="w-full" onclick={copyCode}>
         {#if copied}
-          <CheckIcon class="motion-safe:animate-in motion-safe:zoom-in-50" />
+          <CheckIcon class="motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in motion-safe:duration-500 motion-safe:ease-out" />
           Copied
         {:else}
           <CopyIcon />

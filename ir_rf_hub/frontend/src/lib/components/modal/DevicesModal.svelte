@@ -232,9 +232,9 @@
         <div class="border-border bg-background overflow-x-auto rounded-lg border p-3">
           <pre bind:this={yamlEl} class="font-mono text-xs whitespace-pre">{justAddedYaml}</pre>
         </div>
-        <Button variant="secondary" size="sm" class="w-full" onclick={copyYaml}>
+        <Button variant="outline" size="sm" class="w-full" onclick={copyYaml}>
           {#if yamlCopied}
-            <CheckIcon class="motion-safe:animate-in motion-safe:zoom-in-50" />
+            <CheckIcon class="motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in motion-safe:duration-500 motion-safe:ease-out" />
             Copied
           {:else}
             <CopyIcon />
@@ -249,7 +249,7 @@
           always reliable for this App.
         </p>
       {/if}
-      <Button variant="secondary" size="sm" class="w-full" onclick={() => (justAdded = null)}>
+      <Button variant="outline" size="sm" class="w-full" onclick={() => (justAdded = null)}>
         Dismiss
       </Button>
     </div>
