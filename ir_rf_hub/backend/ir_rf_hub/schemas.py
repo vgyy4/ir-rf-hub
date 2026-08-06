@@ -176,3 +176,15 @@ class CommandDetail(CommandSummary):
     # repeat_timings was auto-detected rather than manually chosen by the
     # user from shape_candidates. Never read by the firing path.
     repeat_protocol: str | None = None
+
+
+class HostNetworkSchema(BaseModel):
+    """The Home Assistant host's real IPv4 gateway and subnet, for the
+    static-IP tip. `guessed` is True when Supervisor couldn't be reached and
+    the values fall back to the old home-network convention, so the UI can
+    word the tip honestly instead of asserting something it doesn't know.
+    """
+
+    gateway: str
+    subnet_mask: str
+    guessed: bool

@@ -210,7 +210,7 @@
     </div>
   {:else if wizard.step === "recording"}
     <h2 class="mb-1 flex items-center gap-2 text-lg font-semibold tracking-tight">
-      {#if !wizard.canProceedFromRecording}
+      {#if wizard.captures.length === 0}
         <span class="relative flex size-2.5">
           <span
             class="bg-destructive motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
@@ -223,9 +223,9 @@
       {/if}
     </h2>
     <p class="text-muted-foreground mb-5 text-sm">
-      {wizard.canProceedFromRecording
-        ? "Signal captured. Send another to compare, or carry on."
-        : "Point the remote at the receiver and press a button."}
+      {wizard.captures.length === 0
+        ? "Point the remote at the receiver and press a button."
+        : "Press it a few more times if you like -- repeats help. Next when you're done."}
     </p>
     <TerminalView captures={wizard.captures} />
     {#if wizard.error}
@@ -242,18 +242,13 @@
         <Button variant="secondary" onclick={() => wizard.clearAndRetry()} disabled={wizard.busy}>
           Clear &amp; retry
         </Button>
-        <Button
-          variant="secondary"
-          onclick={() => wizard.stopRecording()}
-          disabled={wizard.busy || wizard.canProceedFromRecording}
-        >
-          Stop recording
-        </Button>
+        <!-- Stops the session and advances in one press; there is no
+             separate Stop button to hunt for. -->
         <Button
           disabled={!wizard.canProceedFromRecording || wizard.busy}
           onclick={() => {
             haptics.tap();
-            wizard.proceedFromRecording();
+            void wizard.stopAndProceed();
           }}
         >
           Next
