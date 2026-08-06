@@ -10,6 +10,7 @@
   import { devicesStore } from "./lib/stores/devices.svelte";
   import { recordingWizard } from "./lib/stores/recording.svelte";
   import { editWizard } from "./lib/stores/edit.svelte";
+  import { themeStore, type ThemeMode } from "./lib/stores/theme.svelte";
   import { getPairingStatus, type CommandSummary } from "./lib/api";
   import RadioTowerIcon from "@lucide/svelte/icons/radio-tower";
   import PlusIcon from "@lucide/svelte/icons/plus";
@@ -89,6 +90,16 @@
         <h1 class="h4">IR/RF Command Hub</h1>
       </div>
       <div class="flex items-center gap-2">
+        <select
+          class="select w-auto text-sm"
+          aria-label="Color theme"
+          value={themeStore.mode}
+          onchange={(e) => themeStore.setMode(e.currentTarget.value as ThemeMode)}
+        >
+          <option value="auto">Auto (HA)</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
         <button
           type="button"
           class="btn preset-tonal"
