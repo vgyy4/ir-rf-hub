@@ -140,13 +140,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # can't nest inside the loop already running this lifespan -- give it a
     # thread with no running loop of its own.
     await asyncio.to_thread(_run_migrations)
-    token = await _get_or_create_pairing_token()
-    announce_task = asyncio.create_task(_announce_pairing_until_paired(token))
+    # Only touched while unpaired. After pairing the stored value is a hash
+    # (see api/rest/integration.py), which is useless to announce -- and the
+    # announce loop would exit immediately anyway.
+    announce_task = (
+        None
+        if await _is_paired()
+        else asyncio.create_task(_announce_pairing_until_paired(await _get_or_create_pairing_token()))
+    )
     connect_task = asyncio.create_task(_connect_known_devices())
     yield
-    announce_task.cancel()
-    with contextlib.suppress(asyncio.CancelledError):
-        await announce_task
+    if announce_task is not None:
+        announce_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await announce_task
     # Deliberately awaited, not cancelled, unlike announce_task above:
     # this is a bounded one-shot (each device already has its own
     # connect_timeout_s, and _connect_one/gather(return_exceptions=True)

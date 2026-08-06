@@ -8,8 +8,10 @@
     createDevice,
     deleteDevice,
     discoverDevices,
+    getHostNetwork,
     testDevice,
     type DiscoveredDevice,
+    type HostNetwork,
   } from "../../api";
   import { copyElementText } from "../../clipboard";
   import { haptics } from "../../haptics";
@@ -56,23 +58,28 @@
     return octets;
   }
 
-  // Neither the App nor the browser can see the user's actual router
-  // config, so this is only ever a generic suggestion -- gateway-at-.1
-  // and a /24 subnet are just the overwhelming convention for home
-  // networks, not something read from the network. Only computable when
-  // the host is a literal IPv4 address (a .local hostname has no IP to
-  // derive a gateway/subnet from).
+  // The host's real gateway and subnet, read from Supervisor (see the
+  // backend's supervisor_network.py). Fetched once when the menu opens.
+  // `guessed` means Supervisor wasn't reachable and we're back to the old
+  // convention -- the copy below says so rather than stating it as fact.
+  let hostNetwork = $state<HostNetwork | null>(null);
+
+  // Only computable when the host is a literal IPv4 address (a .local
+  // hostname has no IP to build a manual_ip block around).
   let justAddedYaml = $derived.by(() => {
     if (!justAdded) return null;
     const octets = ipv4Octets(justAdded.host);
     if (!octets) return null;
-    const gateway = `${octets[0]}.${octets[1]}.${octets[2]}.1`;
+    // Convention fallback: gateway at .1, /24. Only used when Supervisor
+    // couldn't tell us the real values.
+    const gateway = hostNetwork?.gateway || `${octets[0]}.${octets[1]}.${octets[2]}.1`;
+    const subnet = hostNetwork?.subnet_mask || "255.255.255.0";
     return (
       `wifi:\n` +
       `  manual_ip:\n` +
       `    static_ip: ${justAdded.host}\n` +
       `    gateway: ${gateway}\n` +
-      `    subnet: 255.255.255.0`
+      `    subnet: ${subnet}`
     );
   });
 
@@ -89,6 +96,10 @@
   $effect(() => {
     if (open) {
       void devicesStore.refresh();
+      // Cheap, and only meaningful once a device is actually added -- but
+      // fetching it here means the tip renders complete rather than
+      // filling in its gateway/subnet a beat later.
+      if (!hostNetwork) void getHostNetwork().then((n) => (hostNetwork = n)).catch(() => {});
       // Saves the user a click in the common case (opening the menu to
       // add a device that's already powered on); the radar button stays
       // for the "opened the menu, then turned the ESP on" case this can't
@@ -225,9 +236,11 @@
       {#if justAddedYaml}
         <p>
           If you haven't already, it's worth giving it a static IP so the App doesn't lose it after a
-          reboot or router restart. Add this to the <code>wifi:</code> section of its ESPHome YAML --
-          double-check the gateway and subnet against your own router, these are just the most common
-          home-network defaults, not read from your network:
+          reboot or router restart. Add this to the <code>wifi:</code> section of its ESPHome YAML{#if hostNetwork && !hostNetwork.guessed}
+            -- the gateway and subnet are Home Assistant's own, so they're right as long as the ESP
+            is on the same network:{:else}
+            -- double-check the gateway and subnet against your own router, these are the most common
+            home-network defaults rather than your actual values:{/if}
         </p>
         <div class="border-border bg-background overflow-x-auto rounded-lg border p-3">
           <pre bind:this={yamlEl} class="font-mono text-xs whitespace-pre">{justAddedYaml}</pre>

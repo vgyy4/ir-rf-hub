@@ -253,3 +253,15 @@ export function fireCommand(id: string, deviceId?: string): Promise<void> {
 export function candidateDevicesForCommand(id: string): Promise<EspDeviceSummary[]> {
   return request<EspDeviceSummary[]>(`commands/${id}/candidate-devices`);
 }
+
+export interface HostNetwork {
+  gateway: string;
+  subnet_mask: string;
+  /** True when Supervisor couldn't be reached and these are the old
+   * convention-based guesses rather than the host's real values. */
+  guessed: boolean;
+}
+
+export function getHostNetwork(): Promise<HostNetwork> {
+  return request<HostNetwork>("devices/host-network");
+}

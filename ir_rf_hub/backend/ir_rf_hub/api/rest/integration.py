@@ -25,7 +25,7 @@ from ir_rf_hub.db.models import Command, EspDevice, Setting
 from ir_rf_hub.db.session import get_session
 from ir_rf_hub.esphome.integration_discovery import set_reported_devices
 from ir_rf_hub.schemas import CommandSummary, DeviceOptionSchema, DiscoveredDeviceSchema, HealthResponse
-from ir_rf_hub.security import verify_integration_token
+from ir_rf_hub.security import hash_integration_token, is_hashed_token, verify_integration_token
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,17 @@ async def require_integration_token(
     paired = await session.get(Setting, PAIRED_KEY)
     if paired is None:
         session.add(Setting(key=PAIRED_KEY, value="true"))
+
+    # Once something has paired, the pairing code is never shown again
+    # (/api/pairing-status returns code=None), so the plaintext token has no
+    # remaining purpose -- only verification does, and a hash serves that.
+    # Replacing it here means the database stops holding a working bearer
+    # token for /api/integration/*. Also upgrades installs that paired
+    # before this existed, on their next authenticated call.
+    if setting is not None and not is_hashed_token(setting.value):
+        setting.value = hash_integration_token(presented)
+
+    if session.dirty or session.new:
         await session.commit()
 
 

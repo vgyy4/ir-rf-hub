@@ -24,8 +24,10 @@ from ir_rf_hub.schemas import (
     EspDeviceCreate,
     EspDeviceSummary,
     EspDeviceUpdate,
+    HostNetworkSchema,
 )
 from ir_rf_hub.security import decrypt_secret, encrypt_secret
+from ir_rf_hub.supervisor_network import get_host_network
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
 
@@ -249,3 +251,20 @@ async def discover_devices(session: AsyncSession = Depends(get_session)) -> list
     by_host.update({d.host: DiscoveredDeviceSchema(name=d.name, host=d.host, port=d.port) for d in local})
 
     return [d for d in by_host.values() if d.host not in existing_hosts]
+
+
+@router.get("/host-network", response_model=HostNetworkSchema)
+async def host_network() -> HostNetworkSchema:
+    """Backs the static-IP tip's suggested `gateway:` and `subnet:` lines.
+
+    Supervisor knows the real values for the interface Home Assistant is on
+    (`hassio_api: true` grants us the token); the ESP is assumed to share
+    that subnet, which holds whenever they're on the same LAN. If Supervisor
+    can't be reached -- local dev, or a Supervisor-less install -- we fall
+    back to the convention this tip used to assume unconditionally, and flag
+    it so the UI can say it's a guess rather than stating it as fact.
+    """
+    resolved = await get_host_network()
+    if resolved is not None:
+        return HostNetworkSchema(gateway=resolved.gateway, subnet_mask=resolved.subnet_mask, guessed=False)
+    return HostNetworkSchema(gateway="", subnet_mask="255.255.255.0", guessed=True)

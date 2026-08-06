@@ -13,6 +13,7 @@ it) plus a random bearer token the integration presents on every call to
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import secrets
@@ -86,5 +87,35 @@ def decode_pairing_code(code: str) -> dict:
     return {"host": payload["h"], "port": int(payload["p"]), "token": payload["t"]}
 
 
-def verify_integration_token(presented: str, expected: str) -> bool:
-    return secrets.compare_digest(presented, expected)
+_TOKEN_HASH_PREFIX = "sha256$"
+
+
+def hash_integration_token(token: str) -> str:
+    """A plain SHA-256, deliberately -- not bcrypt/argon2.
+
+    Those exist to make *low-entropy human passwords* expensive to guess.
+    This token is 32 random bytes from `secrets.token_urlsafe` (256 bits),
+    so there is nothing to brute-force and a slow KDF would only add cost
+    to every authenticated call the integration makes.
+    """
+    return _TOKEN_HASH_PREFIX + hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def is_hashed_token(stored: str) -> bool:
+    return stored.startswith(_TOKEN_HASH_PREFIX)
+
+
+def verify_integration_token(presented: str, stored: str) -> bool:
+    """Accepts either storage form.
+
+    The token is held in plaintext only while the App is still unpaired,
+    because the pairing code shown in the UI has to contain it. Once
+    something has paired, the stored value is replaced by its hash (see
+    api/rest/integration.py) -- from then on the database holds nothing
+    that would let a reader authenticate as the integration. Installs
+    that paired before this existed keep working on the plaintext branch
+    and are upgraded in place on their next authenticated call.
+    """
+    if is_hashed_token(stored):
+        return secrets.compare_digest(hash_integration_token(presented), stored)
+    return secrets.compare_digest(presented, stored)

@@ -91,7 +91,16 @@ class RecordingWizard {
 
   private unsubscribeWs: (() => void) | null = null;
 
+  /** True once anything has been captured. The recording step's only
+   * forward action is Next, which stops the session itself (see
+   * stopAndProceed) -- so this gates on having *something* to keep, not on
+   * the session already having been stopped. */
   get canProceedFromRecording() {
+    return this.captures.length > 0 || this.finalTimings !== null || this.shapeCandidates !== null;
+  }
+
+  /** True once the backend has resolved the session into a keepable shape. */
+  private get isStopped() {
     return this.finalTimings !== null || this.shapeCandidates !== null;
   }
 
@@ -299,6 +308,18 @@ class RecordingWizard {
     } finally {
       this.busy = false;
     }
+  }
+
+  /** The recording step's single forward action: stop the session (if it is
+   * still running) and move on in one press. Separating "stop" from "next"
+   * made the user confirm something they had already decided by pressing a
+   * button labelled Next. */
+  async stopAndProceed() {
+    if (!this.isStopped) {
+      await this.stopRecording();
+      if (this.error) return;
+    }
+    this.proceedFromRecording();
   }
 
   proceedFromRecording() {
