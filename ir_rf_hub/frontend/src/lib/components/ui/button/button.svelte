@@ -8,9 +8,17 @@
 		variants: {
 			variant: {
 				default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
-				outline: "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-				secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
-				ghost: "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+				outline: "border-border bg-background hover:bg-foreground/8 hover:text-foreground aria-expanded:bg-foreground/8 aria-expanded:text-foreground dark:border-input dark:bg-input/30",
+				// Hover states are foreground-relative overlays rather than
+				// `bg-muted` / `bg-secondary/80`. Those are near-invisible
+				// wherever the button's own surface is already close to muted
+				// -- a ghost icon button on a popover, or a secondary button on
+				// a tinted panel like the static-IP tip, where fading secondary
+				// to 80% just blends it further into the tint. An overlay keyed
+				// to `foreground` darkens in light mode and lightens in dark,
+				// so it stays visible on every palette and every surface.
+				secondary: "bg-secondary text-secondary-foreground hover:bg-foreground/15 aria-expanded:bg-foreground/15 aria-expanded:text-secondary-foreground",
+				ghost: "hover:bg-foreground/10 hover:text-foreground aria-expanded:bg-foreground/10 aria-expanded:text-foreground",
 				destructive: "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
 				link: "text-primary underline-offset-4 hover:underline",
 			},

@@ -20,13 +20,13 @@
 <li
   class={[
     "bg-card border-border flex items-center gap-1 rounded-xl border p-1.5 shadow-xs",
-    "transition-[border-color,box-shadow] duration-300",
+    "transition-[border-color,box-shadow] duration-500",
     fired && "border-success/60 ring-success/30 ring-2",
   ]}
 >
   <button
     type="button"
-    class="press hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-3"
+    class="press hover:bg-foreground/6 focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-3"
     onclick={() => onFire(command)}
   >
     <!-- The type badge swaps to a green check on a successful send, in
@@ -35,7 +35,7 @@
          name. The badge is the same size in both states. -->
     {#if fired}
       <span
-        class="bg-success/15 text-success border-success/30 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-200 inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-medium"
+        class="bg-success/15 text-success border-success/30 motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in motion-safe:duration-500 motion-safe:ease-out inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-medium"
       >
         <CheckIcon class="size-3" />
         Sent

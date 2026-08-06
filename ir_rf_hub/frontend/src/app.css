@@ -331,6 +331,25 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Tailwind v4's Preflight dropped v3's `cursor: pointer` on buttons, so
+     everything clickable reverts to the arrow cursor. Put it back, minus
+     anything disabled. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="option"],
+  label:has(input:not(:disabled)),
+  summary,
+  a[href] {
+    @apply cursor-pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    @apply cursor-not-allowed;
+  }
+
   /* Switching palette recolours most of the page at once. Without this it
      snaps; with it the swap reads as intentional. Scoped to colour only so
      it never interferes with layout or the dialog entrance animations, and

@@ -22,7 +22,7 @@
     "focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-3",
     selected
       ? "border-primary bg-primary/10"
-      : "border-border bg-card hover:bg-muted",
+      : "border-border bg-card hover:bg-foreground/6",
     className,
   )}
   aria-pressed={selected}

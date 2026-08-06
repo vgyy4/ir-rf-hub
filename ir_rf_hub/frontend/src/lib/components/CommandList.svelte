@@ -33,11 +33,16 @@
   let firedId = $state<string | null>(null);
   let firedTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /** How long the green "Sent" badge stays before reverting to the IR/RF
+   * badge. Long enough to notice and read after glancing back at the
+   * screen, short enough that the row's type is never in doubt for long. */
+  const SENT_BADGE_MS = 2200;
+
   function markFired(id: string) {
     haptics.success();
     firedId = id;
     clearTimeout(firedTimer);
-    firedTimer = setTimeout(() => (firedId = null), 600);
+    firedTimer = setTimeout(() => (firedId = null), SENT_BADGE_MS);
   }
 
   let deleteConfirmCommand = $state<CommandSummary | null>(null);

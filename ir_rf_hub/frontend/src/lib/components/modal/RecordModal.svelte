@@ -112,7 +112,7 @@
          receiver that isn't reachable right now. -->
     <button
       type="button"
-      class="press border-border bg-card hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 mt-3 flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-3"
+      class="press border-border bg-card hover:bg-foreground/6 focus-visible:border-ring focus-visible:ring-ring/50 mt-3 flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-3"
       onclick={() => {
         haptics.tap();
         wizard.goToRawEntry();
@@ -363,7 +363,7 @@
   {:else if wizard.step === "done"}
     <div class="flex flex-col items-center gap-4 py-2 text-center">
       <span
-        class="bg-success/15 text-success motion-safe:animate-in motion-safe:zoom-in-50 flex size-14 items-center justify-center rounded-full"
+        class="bg-success/15 text-success motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in motion-safe:duration-700 motion-safe:ease-out flex size-14 items-center justify-center rounded-full"
       >
         <CheckIcon class="size-7" />
       </span>
