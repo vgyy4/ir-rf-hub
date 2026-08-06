@@ -1,4 +1,10 @@
 @import "tailwindcss";
+
+/* Drive dark mode off a `.dark` class on <html> instead of the OS media
+   query, so the Auto/Dark/Light picker (src/lib/stores/theme.svelte.ts) can
+   override it -- Auto still resolves to the system preference, just via JS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @import "@skeletonlabs/skeleton";
 @import "@skeletonlabs/skeleton-svelte";
 @import "@skeletonlabs/skeleton/themes/catppuccin";
