@@ -20,13 +20,15 @@ from ir_rf_hub.api.rest.devices import router as devices_router
 from ir_rf_hub.api.rest.integration import PAIRED_KEY
 from ir_rf_hub.api.rest.integration import router as integration_router
 from ir_rf_hub.api.rest.recording import router as recording_router
+from ir_rf_hub.api.rest.remote_database import router as remote_database_router
 from ir_rf_hub.api.ws.events import router as ws_events_router
 from ir_rf_hub.api.ws.recording_ws import router as ws_recording_router
 from ir_rf_hub.config import settings
-from ir_rf_hub.db.session import session_scope
 from ir_rf_hub.db.models import EspDevice, Setting
+from ir_rf_hub.db.session import session_scope
 from ir_rf_hub.esphome.connection import DeviceUnreachableError
 from ir_rf_hub.esphome.device_manager import device_manager
+from ir_rf_hub.esphome.remote_database_updater import refresh_periodically as refresh_remote_database_periodically
 from ir_rf_hub.schemas import HealthResponse, PairingStatusResponse
 from ir_rf_hub.security import encode_pairing_code, generate_pairing_token
 from ir_rf_hub.supervisor_discovery import announce_pairing
@@ -113,7 +115,7 @@ async def _connect_known_devices() -> None:
                 pass
 
     results = await asyncio.gather(*(_connect_one(d) for d in device_ids), return_exceptions=True)
-    for device_id, result in zip(device_ids, results):
+    for device_id, result in zip(device_ids, results, strict=True):
         if isinstance(result, BaseException):
             logger.warning("Startup connect to device %s failed unexpectedly", device_id, exc_info=result)
 
@@ -149,7 +151,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         else asyncio.create_task(_announce_pairing_until_paired(await _get_or_create_pairing_token()))
     )
     connect_task = asyncio.create_task(_connect_known_devices())
+    # Checks (not unconditionally refetches -- see the module's own
+    # docstring) whether the bundled-database runtime cache needs
+    # refreshing, then keeps checking on an interval for the rest of the
+    # process's life. A slow/failed first check just means recording
+    # keeps using whatever's already cached/bundled -- never blocks
+    # startup on it. Skippable (see disable_remote_database_updater) so
+    # the test suite never triggers a real git clone against GitHub.
+    remote_database_update_task = (
+        None
+        if settings.disable_remote_database_updater
+        else asyncio.create_task(refresh_remote_database_periodically())
+    )
     yield
+    if remote_database_update_task is not None:
+        remote_database_update_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await remote_database_update_task
     if announce_task is not None:
         announce_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -200,6 +218,7 @@ def create_app() -> FastAPI:
     app.include_router(commands_router)
     app.include_router(integration_router)
     app.include_router(recording_router)
+    app.include_router(remote_database_router)
     app.include_router(ws_events_router)
     app.include_router(ws_recording_router)
 

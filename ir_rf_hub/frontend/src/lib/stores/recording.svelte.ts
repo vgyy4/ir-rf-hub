@@ -6,7 +6,9 @@ import {
   startRecording,
   stopRecording,
   type CommandDetail,
+  type DecodedSignalInfo,
   type DetectedProtocolInfo,
+  type RemoteMatch,
   type ShapeCandidate,
   type SignalType,
 } from "../api";
@@ -64,6 +66,13 @@ class RecordingWizard {
    */
   shapeCandidates = $state<ShapeCandidate[] | null>(null);
   selectedShapeIndices = $state<Set<number>>(new Set());
+  /** Structural protocol decode of the resolved capture (e.g. "NEC,
+   * address 0x04, command 0x08") and any suggested brand/model/button
+   * name matches, both best-effort and shown on the "name" step. Neither
+   * is required to proceed -- see esphome/protocol_decode.py and
+   * esphome/remote_database.py on the backend. */
+  decoded = $state<DecodedSignalInfo | null>(null);
+  remoteMatches = $state<RemoteMatch[]>([]);
   carrierFrequencyHz = $state(0);
   /** Many remotes send the same code several times per button press --
    * the ESP delivers each repeat as its own capture (see captures above),
@@ -123,6 +132,8 @@ class RecordingWizard {
     this.detectedProtocol = null;
     this.shapeCandidates = null;
     this.selectedShapeIndices = new Set();
+    this.decoded = null;
+    this.remoteMatches = [];
     this.carrierFrequencyHz = 0;
     this.repeatCount = 1;
     this.name = "";
@@ -179,6 +190,11 @@ class RecordingWizard {
     this.repeatTimings = repeat;
     this.detectedProtocol = null;
     this.shapeCandidates = null;
+    // Hand-written timings never go through the backend's decode/lookup
+    // step (that only runs in stop_recording) -- clear any leftovers from
+    // a previous live recording rather than showing stale suggestions.
+    this.decoded = null;
+    this.remoteMatches = [];
     this.error = null;
     this.step = "name";
   }
@@ -243,6 +259,8 @@ class RecordingWizard {
       this.detectedProtocol = null;
       this.shapeCandidates = null;
       this.selectedShapeIndices = new Set();
+      this.decoded = null;
+      this.remoteMatches = [];
       this.repeatCount = 1;
       this.enteredRawManually = false;
       this.carrierFrequencyHz = receiverFrequencyHz(devicesStore.items, this.deviceId, this.type);
@@ -278,6 +296,8 @@ class RecordingWizard {
     try {
       const result = await stopRecording(this.sessionId);
       this.repeatCount = Math.max(1, result.capture_count);
+      this.decoded = result.decoded;
+      this.remoteMatches = result.remote_matches;
       this.unsubscribeWs?.();
       this.unsubscribeWs = null;
 
@@ -335,6 +355,11 @@ class RecordingWizard {
    * simpler than a hard block for a two-role (leader/repeat) picker.
    */
   toggleShapeSelection(index: number) {
+    // A plain Set, not SvelteSet: built as a scratch copy and reassigned
+    // wholesale below rather than mutated in place, which is what makes
+    // `$state` reactivity pick it up -- the same immutable-update pattern
+    // every other write to selectedShapeIndices in this file already uses.
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const next = new Set(this.selectedShapeIndices);
     if (next.has(index)) {
       next.delete(index);

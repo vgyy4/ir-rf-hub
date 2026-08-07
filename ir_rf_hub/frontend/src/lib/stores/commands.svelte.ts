@@ -26,11 +26,17 @@ class CommandsStore {
    */
   startLiveSync() {
     if (this.disconnect) return;
-    this.disconnect = connectEventSocket((event) => {
-      if (event.type === "command.created" || event.type === "command.updated" || event.type === "command.deleted") {
-        void this.refresh();
-      }
-    });
+    this.disconnect = connectEventSocket(
+      (event) => {
+        if (event.type === "command.created" || event.type === "command.updated" || event.type === "command.deleted") {
+          void this.refresh();
+        }
+      },
+      // The socket itself now reconnects on its own (see ws.ts), but a
+      // reconnect means some events could have been missed while it was
+      // down -- a full resync is the correctness backstop for that gap.
+      () => void this.refresh(),
+    );
   }
 
   stopLiveSync() {

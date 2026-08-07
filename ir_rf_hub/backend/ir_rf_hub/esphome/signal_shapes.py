@@ -36,7 +36,7 @@ def _edges_similar(a: int, b: int, tolerance: float) -> bool:
 def _shapes_similar(a: list[int], b: list[int], tolerance: float = _SIMILARITY_TOLERANCE) -> bool:
     if len(a) != len(b):
         return False
-    return all(_edges_similar(x, y, tolerance) for x, y in zip(a, b))
+    return all(_edges_similar(x, y, tolerance) for x, y in zip(a, b, strict=True))
 
 
 @dataclass

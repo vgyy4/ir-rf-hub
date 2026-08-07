@@ -16,6 +16,13 @@ class Settings(BaseSettings):
 
     log_level: str = "info"
     data_dir: Path = Path("./data")
+    # Off in tests (see conftest.py's _isolated_data_dir) -- the updater's
+    # refresh() does a real `git clone` against GitHub, which every test
+    # spinning up the app's lifespan would otherwise trigger (no meta.json
+    # yet in a fresh tmp_path data_dir means _needs_refresh() is always
+    # True), making the suite slow, flaky, and dependent on network access
+    # it has no business needing.
+    disable_remote_database_updater: bool = False
     # Set by the container's run script (IR_RF_HUB_ALEMBIC_INI) -- alembic.ini
     # isn't inside the ir_rf_hub package, so `pip install .` never ships it
     # alongside the installed code (which can end up anywhere, e.g.

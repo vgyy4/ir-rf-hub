@@ -17,7 +17,7 @@ class _RecordingClient:
     def __init__(self, **kwargs: object) -> None:
         self.requests: list[tuple[str, dict, dict]] = []
 
-    async def __aenter__(self) -> "_RecordingClient":
+    async def __aenter__(self) -> _RecordingClient:
         return self
 
     async def __aexit__(self, *exc_info: object) -> bool:

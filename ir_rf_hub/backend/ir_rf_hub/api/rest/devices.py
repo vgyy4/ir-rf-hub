@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ir_rf_hub.db.models import Command, EspDevice
+from ir_rf_hub.db.models import EspDevice
 from ir_rf_hub.db.session import get_session
 from ir_rf_hub.esphome.connection import (
     DeviceEncryptionKeyInvalidError,
@@ -61,7 +61,10 @@ async def _ensure_unique_host(host: str, port: int, session: AsyncSession, *, ex
 
 def _encryption_error_message(exc: DeviceUnreachableError) -> str:
     if isinstance(exc, DeviceRequiresEncryptionError):
-        return "This device requires an encryption key. Enter the noise_psk key from its ESPHome YAML's api: encryption: block."
+        return (
+            "This device requires an encryption key. Enter the noise_psk key from its "
+            "ESPHome YAML's api: encryption: block."
+        )
     if isinstance(exc, DeviceEncryptionKeyInvalidError):
         return "That encryption key is incorrect for this device."
     return "An encryption key was entered, but this device isn't configured to use encryption -- leave the key blank."

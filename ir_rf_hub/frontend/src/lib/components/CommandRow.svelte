@@ -27,6 +27,7 @@
   <button
     type="button"
     class="press hover:bg-foreground/6 focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-3"
+    aria-label="Fire {command.name}"
     onclick={() => onFire(command)}
   >
     <!-- The type badge swaps to a green check on a successful send, in

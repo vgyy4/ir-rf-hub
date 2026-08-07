@@ -1,6 +1,6 @@
 [project]
 name = "ir-rf-hub"
-version = "0.1.13"
+version = "0.2.1"
 description = "Backend for the IR/RF Command Hub Home Assistant App"
 requires-python = ">=3.12"
 dependencies = [
@@ -23,6 +23,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "httpx-ws>=0.7",
     "pytest-timeout>=2.3",
+    "ruff>=0.8",
 ]
 
 [build-system]
@@ -36,3 +37,22 @@ packages = ["ir_rf_hub"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 timeout = 30
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI's `= Depends(...)` parameter-default idiom is exactly what
+# this rule warns about elsewhere for good reason, but it's how DI works
+# here -- every route would otherwise need an inline suppression.
+# UP042: str+Enum -> StrEnum is a real modernization, but these enum
+# members flow into SQLAlchemy columns and JSON responses; left alone here
+# rather than swept in as a drive-by change under a lint pass.
+ignore = ["B008", "UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+# Long literal timing arrays and request payloads in test bodies aren't
+# worth reformatting for line length.
+"tests/*" = ["E501"]

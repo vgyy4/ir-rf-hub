@@ -98,6 +98,21 @@ export function deleteDevice(id: string): Promise<void> {
   return request<void>(`devices/${id}`, { method: "DELETE" });
 }
 
+export interface UpdateDeviceRequest {
+  name?: string;
+  host?: string;
+  port?: number;
+  encryption_key?: string | null;
+  password?: string | null;
+  tx_settle_ms?: number;
+  rx_stop_settle_ms?: number;
+  connect_timeout_s?: number;
+}
+
+export function updateDevice(id: string, payload: UpdateDeviceRequest): Promise<EspDeviceSummary> {
+  return request<EspDeviceSummary>(`devices/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+}
+
 // Forces a fresh reconnect (dropping any cached session first) and
 // re-discovers entities -- what to call after e.g. reflashing an ESP
 // with new IR/RF hardware, rather than waiting for the next incidental
@@ -158,15 +173,33 @@ export interface DetectedProtocolInfo {
   repeat_timings: number[];
 }
 
+export interface DecodedSignalInfo {
+  protocol: string;
+  address: number;
+  command: number;
+}
+
+export interface RemoteMatch {
+  source: "bundled" | "online";
+  category: string;
+  brand: string;
+  model: string;
+  button: string;
+}
+
 // Exactly one of timings / detected_protocol / shape_candidates is set,
 // depending on what the backend found among the session's captures --
-// see backend's esphome/signal_shapes.py.
+// see backend's esphome/signal_shapes.py. decoded/remote_matches are
+// best-effort extras computed from whichever of those resolved, see
+// esphome/protocol_decode.py and esphome/remote_database.py.
 export interface RecordingStopResponse {
   session_id: string;
   capture_count: number;
   timings: number[] | null;
   detected_protocol: DetectedProtocolInfo | null;
   shape_candidates: ShapeCandidate[] | null;
+  decoded: DecodedSignalInfo | null;
+  remote_matches: RemoteMatch[];
 }
 
 export function startRecording(type: SignalType, deviceId: string): Promise<RecordingSessionResponse> {
@@ -252,6 +285,42 @@ export function fireCommand(id: string, deviceId?: string): Promise<void> {
 
 export function candidateDevicesForCommand(id: string): Promise<EspDeviceSummary[]> {
   return request<EspDeviceSummary[]>(`commands/${id}/candidate-devices`);
+}
+
+export interface TestFireRequest {
+  type: SignalType;
+  device_id: string;
+  raw_timings: number[];
+  carrier_frequency_hz: number;
+  repeat_count: number;
+  repeat_timings?: number[] | null;
+}
+
+/** Fires an in-progress raw editor payload directly, without it existing
+ * as (or being saved as) a Command first -- see backend's test_fire().
+ */
+export function testFireRaw(payload: TestFireRequest): Promise<void> {
+  return request<void>("commands/test-fire", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export interface RemoteSearchResult {
+  category: string;
+  brand: string;
+  model: string;
+  button: string;
+  raw_timings: number[];
+  carrier_frequency_hz: number;
+  repeat_count: number;
+}
+
+export function searchRemoteDatabase(
+  query: string,
+  type: SignalType = "ir",
+  limit = 30,
+): Promise<RemoteSearchResult[]> {
+  return request<RemoteSearchResult[]>(
+    `remote-database/search?q=${encodeURIComponent(query)}&type=${type}&limit=${limit}`,
+  );
 }
 
 export interface HostNetwork {

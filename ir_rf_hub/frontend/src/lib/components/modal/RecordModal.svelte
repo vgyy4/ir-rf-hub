@@ -324,6 +324,32 @@
         Saving two signals: the one you picked first, plus a distinct repeat signal.
       </p>
     {/if}
+    {#if wizard.decoded}
+      <p class="text-muted-foreground mb-2 text-xs">
+        Decoded as {wizard.decoded.protocol} &middot; address 0x{wizard.decoded.address
+          .toString(16)
+          .toUpperCase()} &middot; command 0x{wizard.decoded.command.toString(16).toUpperCase()}
+      </p>
+    {/if}
+    {#if wizard.remoteMatches.length > 0}
+      <div class="mb-4 space-y-1.5">
+        <p class="text-muted-foreground text-xs tracking-wide uppercase">Looks like one of these</p>
+        {#each wizard.remoteMatches as match (match.brand + match.model + match.button)}
+          <button
+            type="button"
+            class="press border-primary/25 bg-primary/10 hover:bg-primary/20 focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors outline-none focus-visible:ring-3"
+            onclick={() => {
+              haptics.tap();
+              wizard.name = `${match.brand} ${match.model} ${match.button}`;
+              nameInput?.focus();
+            }}
+          >
+            <span>{match.brand} {match.model} &mdash; {match.button}</span>
+            <span class="text-muted-foreground shrink-0 text-xs">{match.category}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
     <Input
       type="text"
       class="mb-4"

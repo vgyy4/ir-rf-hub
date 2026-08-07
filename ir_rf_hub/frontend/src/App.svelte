@@ -5,6 +5,7 @@
   import EditModal from "./lib/components/modal/EditModal.svelte";
   import RawEditor from "./lib/components/modal/RawEditor.svelte";
   import DevicesModal from "./lib/components/modal/DevicesModal.svelte";
+  import SearchModal from "./lib/components/modal/SearchModal.svelte";
   import PairingGate from "./lib/components/PairingGate.svelte";
   import ThemeMenu from "./lib/components/ThemeMenu.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -12,10 +13,12 @@
   import { devicesStore } from "./lib/stores/devices.svelte";
   import { recordingWizard } from "./lib/stores/recording.svelte";
   import { editWizard } from "./lib/stores/edit.svelte";
+  import { searchWizard } from "./lib/stores/search.svelte";
   import { getPairingStatus, type CommandSummary } from "./lib/api";
   import RadioTowerIcon from "@lucide/svelte/icons/radio-tower";
   import PlusIcon from "@lucide/svelte/icons/plus";
   import RouterIcon from "@lucide/svelte/icons/router";
+  import SearchIcon from "@lucide/svelte/icons/search";
 
   let devicesModalOpen = $state(false);
 
@@ -56,6 +59,11 @@
   function openRecordModal() {
     void devicesStore.refresh();
     recordingWizard.open();
+  }
+
+  function openSearchModal() {
+    void devicesStore.refresh();
+    searchWizard.open();
   }
 
   function openEditModal(command: CommandSummary) {
@@ -103,6 +111,10 @@
           <RouterIcon />
           Devices
         </Button>
+        <Button variant="secondary" aria-label="Search for a known remote's command" onclick={openSearchModal}>
+          <SearchIcon />
+          Search
+        </Button>
         <Button onclick={openRecordModal}>
           <PlusIcon />
           New Recording
@@ -116,5 +128,6 @@
   <RecordModal />
   <EditModal />
   <RawEditor />
+  <SearchModal />
   <DevicesModal open={devicesModalOpen} onClose={() => (devicesModalOpen = false)} />
 {/if}

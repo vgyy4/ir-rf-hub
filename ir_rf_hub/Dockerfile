@@ -1,18 +1,35 @@
+# syntax=docker/dockerfile:1
+
 # Must be declared before the FIRST FROM in the file to be usable inside
 # any later FROM's image reference -- Docker only extends ARG scope into
 # FROM instructions for ARGs declared before the first FROM, not merely
 # before the FROM that uses them. Declaring it later (as this file
 # originally did) silently resolves to blank, which buildx then rejects.
-ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
+#
+# Pinned rather than `:latest` for build reproducibility -- since (per the
+# comment at stage 2 below) this default is now the *actual* base image,
+# not a placeholder Supervisor overwrites, an untagged `latest` would mean
+# every rebuild silently picks up whatever HA last pushed. Check
+# https://github.com/home-assistant/docker-base/pkgs/container/base for
+# newer tags when bumping.
+ARG BUILD_FROM=ghcr.io/home-assistant/base:3.24-2026.06.1
 
 # --- stage 1: build the Svelte SPA -----------------------------------------
 # A separate, non-arch-pinned stage: the frontend build only ever needs to
-# *run* on the builder's host platform (buildx handles that automatically),
-# it never runs on-device, so it doesn't need to track BUILD_FROM/arch.
-FROM node:22-alpine AS frontend-build
+# *run* on the builder's host platform, it never runs on-device, so it
+# doesn't need to track BUILD_FROM/arch. `--platform=$BUILDPLATFORM` makes
+# that explicit rather than assumed -- buildx does NOT infer this on its
+# own; an unpinned stage otherwise builds for TARGETPLATFORM, which is only
+# ever the same as the host here by coincidence (CI happens to run each
+# arch on a native runner today). Pinning it also means this stage's cache
+# is identical (and reusable) regardless of which arch is being packaged.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend-build
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+# Cache mount, not a layer: package-lock.json changing still forces a real
+# npm ci, but the already-downloaded tarballs for unchanged packages don't
+# need to be re-fetched from the registry every time.
+RUN --mount=type=cache,target=/root/.npm npm ci
 COPY frontend/ ./
 # Writes into ../backend/ir_rf_hub/static per vite.config.ts's outDir.
 RUN npm run build
@@ -44,7 +61,11 @@ COPY backend/pyproject.toml /app/pyproject.toml
 COPY backend/ir_rf_hub /app/ir_rf_hub
 COPY --from=frontend-build /backend/ir_rf_hub/static /app/ir_rf_hub/static
 
-RUN pip install --no-cache-dir --break-system-packages .
+# Same cache-mount reasoning as the npm ci step above -- --no-cache-dir is
+# dropped since the mount already keeps pip's download cache out of the
+# final image layer, so there's no longer a size cost to letting pip reuse
+# already-downloaded wheels for unchanged dependencies.
+RUN --mount=type=cache,target=/root/.cache/pip pip install --break-system-packages .
 
 # alembic.ini sits next to pyproject.toml, not inside the ir_rf_hub/
 # package -- `pip install .` (packages = ["ir_rf_hub"]) never ships it, so

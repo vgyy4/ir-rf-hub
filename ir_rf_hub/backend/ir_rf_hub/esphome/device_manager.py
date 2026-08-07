@@ -8,7 +8,7 @@ DeviceSession per device no matter how many requests come in concurrently.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +42,9 @@ class DeviceManager:
     def get_cached(self, device_id: str) -> DeviceSession | None:
         return self._sessions.get(device_id)
 
-    async def connect(self, session: AsyncSession, device: EspDevice, *, persist_entities: bool = True) -> DeviceSession:
+    async def connect(
+        self, session: AsyncSession, device: EspDevice, *, persist_entities: bool = True
+    ) -> DeviceSession:
         """Connect (or reuse an existing connection) to a device and, by
         default, persist its discovered DeviceEntity rows.
         """
@@ -60,7 +62,7 @@ class DeviceManager:
             raise
 
         self._sessions[device.id] = device_session
-        device.last_connected_at = datetime.now(timezone.utc)
+        device.last_connected_at = datetime.now(UTC)
         device.last_error = None
 
         if persist_entities:

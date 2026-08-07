@@ -8,13 +8,16 @@ __pycache__/
 node_modules/
 ir_rf_hub/backend/ir_rf_hub/static/
 
-# Local dev data (SQLite DB, Fernet key, etc.)
+# Local dev data (SQLite DB, Fernet key, etc.) -- anchored so it doesn't
+# also catch ir_rf_hub/backend/ir_rf_hub/data/, which holds bundled
+# runtime assets (e.g. the Flipper IR database index) that ARE meant to
+# be tracked.
 .devdata/
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
-data/
+/ir_rf_hub/backend/data/
 
 # Editors / OS
 .vscode/

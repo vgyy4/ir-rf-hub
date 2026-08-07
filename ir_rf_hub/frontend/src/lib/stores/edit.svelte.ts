@@ -1,4 +1,4 @@
-import { createCommand, getCommand, updateCommand, type CommandDetail, type CommandSummary } from "../api";
+import { createCommand, getCommand, testFireRaw, updateCommand, type CommandDetail, type CommandSummary } from "../api";
 import { parseOptionalTimingsText, parseTimingsText } from "../timings";
 
 export type EditStep = "closed" | "choose-action" | "choose-default-device" | "raw-editor";
@@ -17,6 +17,14 @@ class EditWizard {
   newCommandName = $state("");
   busy = $state(false);
   error = $state<string | null>(null);
+
+  // Test-fire: separate state from the save flow above so a failed test
+  // shot never blocks/clobbers an in-progress save (and vice versa).
+  showTestFirePicker = $state(false);
+  testFireBusy = $state(false);
+  testFireError = $state<string | null>(null);
+  testFireSuccess = $state(false);
+  private testFireSuccessTimer: ReturnType<typeof setTimeout> | undefined;
 
   async open(summary: CommandSummary) {
     this.step = "choose-action";
@@ -139,11 +147,49 @@ class EditWizard {
     }
   }
 
+  /** Fires the editor's current (possibly unsaved) raw timings against a
+   * chosen device -- lets you verify a hand-edited signal actually does
+   * something before committing to Save. Uses whatever's in the textareas
+   * right now, not what's persisted, so editing then testing then editing
+   * again always tests the latest text.
+   */
+  async testFire(deviceId: string) {
+    const timings = this.parseRawTimings();
+    const repeatTimings = this.parseRepeatTimings();
+    if (!this.command || !timings || repeatTimings === undefined) {
+      this.testFireError = "Raw timings must be a comma-separated list of integers";
+      return;
+    }
+    this.testFireBusy = true;
+    this.testFireError = null;
+    try {
+      await testFireRaw({
+        type: this.command.type,
+        device_id: deviceId,
+        raw_timings: timings,
+        carrier_frequency_hz: this.command.carrier_frequency_hz,
+        repeat_count: this.repeatCount,
+        repeat_timings: repeatTimings,
+      });
+      this.testFireSuccess = true;
+      clearTimeout(this.testFireSuccessTimer);
+      this.testFireSuccessTimer = setTimeout(() => (this.testFireSuccess = false), 2200);
+    } catch (e) {
+      this.testFireError = String(e);
+    } finally {
+      this.testFireBusy = false;
+    }
+  }
+
   close() {
     this.step = "closed";
     this.command = null;
     this.showSaveAsNewPrompt = false;
     this.newCommandName = "";
+    this.showTestFirePicker = false;
+    this.testFireError = null;
+    this.testFireSuccess = false;
+    clearTimeout(this.testFireSuccessTimer);
   }
 }
 
