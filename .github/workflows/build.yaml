@@ -39,7 +39,7 @@ jobs:
 
       - name: Get app information
         id: info
-        uses: home-assistant/actions/helpers/info@1.0.0
+        uses: home-assistant/actions/helpers/info@master
         with:
           path: "./ir_rf_hub"
 
