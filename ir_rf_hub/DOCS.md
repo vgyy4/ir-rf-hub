@@ -1,8 +1,8 @@
-# IR/RF Command Hub
+# IR/RF Hub
 
 Record, name, edit, and fire IR and RF commands through ESPHome devices
 running the `ir_rf_proxy` component, and expose them to Home Assistant
-automations and dashboards via the companion **IR/RF Command Hub**
+automations and dashboards via the companion **IR/RF Hub**
 integration.
 
 ## Before you start
@@ -141,7 +141,7 @@ touch this). If you want to keep your commands, back up first.
 ## Connecting the companion integration
 
 Open this App -- it will show a pairing code on a screen you can't dismiss until you've pasted it into the integration below.
-Install the **IR/RF Command Hub** integration in Home Assistant (via HACS,
+Install the **IR/RF Hub** integration in Home Assistant (via HACS,
 or manually), and paste the code into the single field in its setup form.
 That's it — no separate host/port entry needed, the code carries everything
 required to connect.

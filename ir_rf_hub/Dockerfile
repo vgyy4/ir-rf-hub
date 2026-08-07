@@ -80,7 +80,7 @@ RUN chmod a+x /etc/s6-overlay/s6-rc.d/ir-rf-hub/run \
     && chmod a+x /backup_pre.sh /backup_post.sh
 
 LABEL \
-    org.opencontainers.image.title="IR/RF Command Hub" \
+    org.opencontainers.image.title="IR/RF Hub" \
     org.opencontainers.image.description="Record, name, edit, and fire IR/RF commands through ESPHome IR/RF proxy devices" \
     org.opencontainers.image.source="https://github.com/vgyy4/ir-rf-hub" \
     org.opencontainers.image.licenses="Apache License 2.0"

@@ -137,7 +137,7 @@ async def _announce_pairing_until_paired(token: str) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logging.basicConfig(level=settings.log_level.upper())
-    logger.info("IR/RF Command Hub backend starting (version %s)", __version__)
+    logger.info("IR/RF Hub backend starting (version %s)", __version__)
     # Alembic's upgrade() drives env.py's own asyncio.run() internally, which
     # can't nest inside the loop already running this lifespan -- give it a
     # thread with no running loop of its own.
@@ -184,11 +184,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     with contextlib.suppress(Exception):
         await connect_task
     await device_manager.disconnect_all()
-    logger.info("IR/RF Command Hub backend shutting down")
+    logger.info("IR/RF Hub backend shutting down")
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="IR/RF Command Hub", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="IR/RF Hub", version=__version__, lifespan=lifespan)
 
     @app.get("/api/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

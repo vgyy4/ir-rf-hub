@@ -94,14 +94,14 @@
   <PairingGate code={pairingCode} {onPaired} />
 {:else if gateState === "paired"}
   <div class="mx-auto min-h-screen max-w-2xl px-4 pt-6 pb-16">
-    <header class="mb-6 flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2.5">
+    <header class="mb-6 flex flex-wrap items-center justify-between gap-x-2 gap-y-3">
+      <div class="flex shrink-0 items-center gap-2.5">
         <div class="bg-primary/15 text-primary rounded-lg p-2">
           <RadioTowerIcon class="size-5" />
         </div>
-        <h1 class="text-lg font-semibold tracking-tight">IR/RF Command Hub</h1>
+        <h1 class="text-lg font-semibold tracking-tight whitespace-nowrap">IR/RF Hub</h1>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5 sm:gap-2">
         <ThemeMenu />
         <Button
           variant="secondary"
@@ -109,15 +109,15 @@
           onclick={() => (devicesModalOpen = true)}
         >
           <RouterIcon />
-          Devices
+          <span class="hidden sm:inline">Devices</span>
         </Button>
         <Button variant="secondary" aria-label="Search for a known remote's command" onclick={openSearchModal}>
           <SearchIcon />
-          Search
+          <span class="hidden sm:inline">Search</span>
         </Button>
-        <Button onclick={openRecordModal}>
+        <Button onclick={openRecordModal} aria-label="New Recording">
           <PlusIcon />
-          New Recording
+          <span class="hidden sm:inline">New Recording</span>
         </Button>
       </div>
     </header>
