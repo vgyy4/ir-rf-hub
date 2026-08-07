@@ -1,4 +1,4 @@
-# IR/RF Command Hub
+# IR/RF Hub
 
 > [!WARNING]
 > **This project is experimental.** It was built quickly, has not been
@@ -10,7 +10,7 @@
 
 A Home Assistant App for recording, naming, editing, and firing IR and RF
 commands through ESPHome devices running the [`ir_rf_proxy`](https://esphome.io/components/ir_rf_proxy/)
-component. Pairs with the companion [IR/RF Command Hub integration](https://github.com/vgyy4/ir-rf-hub-integration),
+component. Pairs with the companion [IR/RF Hub integration](https://github.com/vgyy4/ir-rf-hub-integration),
 which exposes every recorded command as real Home Assistant `button`,
 `switch`, and `select` entities (plus one `remote` entity that addresses
 any command by name) for automations and dashboards.
@@ -31,9 +31,9 @@ Frontend is Svelte 5 + Tailwind v4 + [shadcn-svelte](https://shadcn-svelte.com) 
 ## Installing
 
 1. Add this repository to your Home Assistant App store (Settings → Apps → ⋮ → Repositories → add `https://github.com/vgyy4/ir-rf-hub`).
-2. Install "IR/RF Command Hub" and start it.
+2. Install "IR/RF Hub" and start it.
 3. Flash `ir_rf_proxy` onto the ESPHome devices you want to use (see `ir_rf_hub/DOCS.md`, or the App's own Documentation tab in Home Assistant) — this needs Home Assistant OS/Supervised, since Apps aren't available otherwise.
-4. Install the [companion integration](https://github.com/vgyy4/ir-rf-hub-integration). Most installs just need a confirm click: the App announces itself to Supervisor's Discovery API automatically, so a "IR/RF Command Hub" **Discovered** card should appear under Settings → Devices & services within a minute or so. If it doesn't show up, open the App -- the first time it starts, it shows a pairing code on a screen you can't get past until you pair -- and paste that code into the integration's setup form instead.
+4. Install the [companion integration](https://github.com/vgyy4/ir-rf-hub-integration). Most installs just need a confirm click: the App announces itself to Supervisor's Discovery API automatically, so a "IR/RF Hub" **Discovered** card should appear under Settings → Devices & services within a minute or so. If it doesn't show up, open the App -- the first time it starts, it shows a pairing code on a screen you can't get past until you pair -- and paste that code into the integration's setup form instead.
 
 ## Contributing
 
