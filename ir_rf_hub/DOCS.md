@@ -8,10 +8,15 @@ integration.
 ## Before you start
 
 Each ESPHome device you want to use for recording or firing commands needs
-an `ir_rf_proxy` block in its YAML, on top of an existing
-`remote_receiver`/`remote_transmitter` configuration. A device can be
-receiver-only, transmitter-only, or both, and IR-only, RF-only, or both
-(one `ir_rf_proxy` platform entry per direction/domain).
+an `infrared:` and/or `radio_frequency:` block using the `ir_rf_proxy`
+platform, on top of an existing `remote_receiver`/`remote_transmitter`
+configuration -- `ir_rf_proxy` is the *platform* value, not a top-level
+YAML key of its own. A device can be receiver-only, transmitter-only, or
+both, and IR-only, RF-only, or both (one platform entry per
+direction/domain). This ESPHome component is still marked experimental
+upstream, so its config shape may change between ESPHome releases -- see
+[the official docs](https://esphome.io/components/ir_rf_proxy/) if
+anything here stops matching what ESPHome accepts.
 
 Minimal example, one ESP32 with an IR receiver and an IR transmitter:
 
@@ -26,19 +31,24 @@ remote_transmitter:
   pin: GPIO33
   carrier_duty_percent: 50%   # required 30-50% for IR
 
-ir_rf_proxy:
-  - platform: infrared
+infrared:
+  - platform: ir_rf_proxy
+    name: IR Receiver
     remote_receiver_id: ir_rx
-  - platform: infrared
+    # receiver_frequency: 38kHz   # optional metadata, e.g. for a TSOP38238
+  - platform: ir_rf_proxy
+    name: IR Transmitter
     remote_transmitter_id: ir_tx
 ```
 
-For RF (433MHz etc.), `carrier_duty_percent` must be exactly `100%`, and you
-give the proxy a `frequency` (metadata only, not a hardware tune):
+For RF (433MHz etc.), use `radio_frequency:` instead of `infrared:`,
+`carrier_duty_percent` must be exactly `100%`, and you give the proxy a
+`frequency` (metadata only, not a hardware tune):
 
 ```yaml
-ir_rf_proxy:
-  - platform: radio_frequency
+radio_frequency:
+  - platform: ir_rf_proxy
+    name: 433MHz RF Transmitter
     remote_transmitter_id: rf_tx
     frequency: 433.92MHz
 ```
@@ -46,18 +56,27 @@ ir_rf_proxy:
 ### Half-duplex RF front-ends (e.g. CC1101)
 
 If your RF hardware can't receive and transmit at the same time, wire the
-transmitter's `on_transmit`/`on_complete` triggers to switch the front-end
-into TX mode and back:
+`on_transmit`/`on_complete` triggers on the underlying `remote_transmitter`
+itself (not on the `radio_frequency:` entry) to switch the front-end into
+TX mode and back:
 
 ```yaml
-ir_rf_proxy:
-  - platform: radio_frequency
+remote_transmitter:
+  id: rf_tx
+  pin: GPIO33
+  carrier_duty_percent: 100%
+  on_transmit:
+    then:
+      - switch.turn_on: rf_frontend_tx_mode
+  on_complete:
+    then:
+      - switch.turn_off: rf_frontend_tx_mode
+
+radio_frequency:
+  - platform: ir_rf_proxy
+    name: 433MHz RF Transmitter
     remote_transmitter_id: rf_tx
     frequency: 433.92MHz
-    on_transmit:
-      - switch.turn_on: rf_frontend_tx_mode
-    on_complete:
-      - switch.turn_off: rf_frontend_tx_mode
 ```
 
 The App always applies a short settle delay before and after every
