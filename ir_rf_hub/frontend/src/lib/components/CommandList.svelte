@@ -84,7 +84,7 @@
       }
       return;
     }
-    // No default set -- ask which ESP, filtered to transmitters of the
+    // No default set: ask which ESP, filtered to transmitters of the
     // matching IR/RF type (server-side filter, see candidate-devices).
     firePickerCommand = command;
     firePickerDevices = await candidateDevicesForCommand(command.id);
@@ -172,7 +172,7 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Delete "{deleteConfirmCommand?.name}"?</AlertDialog.Title>
       <AlertDialog.Description>
-        This can't be undone -- you'll need to re-record it to get it back.
+        This can't be undone: you'll need to re-record it to get it back.
       </AlertDialog.Description>
     </AlertDialog.Header>
     {#if deleteError}

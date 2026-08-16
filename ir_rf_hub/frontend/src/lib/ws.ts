@@ -11,13 +11,13 @@ const RECONNECT_INITIAL_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 30000;
 
 /** Opens `path` as a WebSocket and keeps it open: on any drop (backend
- * restart, Ingress token rotation, a brief network blip -- all things that
+ * restart, Ingress token rotation, a brief network blip: all things that
  * happen to a long-lived tab), reconnects with exponential backoff
  * (1s, 2s, 4s, ... capped at 30s, reset to 1s on the next successful
  * connect) rather than leaving the caller silently stale until a page
  * reload. Mirrors the companion integration's own WS reconnect loop
  * (api.py's async_listen_events) for the same reason: it's a plain retry
- * loop around the socket, not a queue -- `onmessage` just keeps firing
+ * loop around the socket, not a queue: `onmessage` just keeps firing
  * across reconnects, and a REST resync (already how these callers each
  * establish their starting state) is the correctness backstop for
  * whatever was missed while disconnected.

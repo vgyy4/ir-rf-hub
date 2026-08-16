@@ -1,5 +1,5 @@
 """Short mDNS browse for ESPHome devices on the LAN (`_esphomelib._tcp.local.`).
-This is for populating the App's "add a device" UI with candidates -- unrelated
+This is for populating the App's "add a device" UI with candidates: unrelated
 to the App<->companion-integration pairing, which deliberately avoids
 zeroconf entirely (see security.py).
 """
@@ -29,7 +29,7 @@ async def discover_esphome_devices(*, timeout_s: float = 3.0, settle_s: float = 
 
     Devices on a LAN answer a multicast query within a few hundred
     milliseconds, so a flat sleep spent most of its time waiting for
-    responses that had already arrived -- the "Scan for devices" button (and
+    responses that had already arrived: the "Scan for devices" button (and
     the automatic scan when the Devices menu opens) felt slow for no reason.
 
     `settle_s` is how long a gap with no new announcements counts as quiet.
@@ -73,7 +73,7 @@ async def discover_esphome_devices(*, timeout_s: float = 3.0, settle_s: float = 
             announced.clear()
             try:
                 await asyncio.wait_for(announced.wait(), timeout=min(settle_s, remaining))
-                # Something new turned up -- keep listening for more.
+                # Something new turned up: keep listening for more.
                 continue
             except TimeoutError:
                 pass

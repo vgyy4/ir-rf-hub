@@ -1,7 +1,7 @@
 """GET /api/devices/discover merges two sources: the App's own local
 mDNS browse and whatever the companion integration most recently
 reported via POST /api/integration/discovered-devices. The local browse
-is monkeypatched everywhere here -- it's a real zeroconf/multicast
+is monkeypatched everywhere here: it's a real zeroconf/multicast
 operation that doesn't belong in a fast, deterministic unit test (and
 may not even work in a sandboxed CI network namespace at all).
 """

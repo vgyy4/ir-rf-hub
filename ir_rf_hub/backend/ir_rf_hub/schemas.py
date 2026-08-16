@@ -21,7 +21,7 @@ class PairingCodeResponse(BaseModel):
 
 class PairingStatusResponse(BaseModel):
     paired: bool
-    # Only present while unpaired -- once the integration has connected,
+    # Only present while unpaired: once the integration has connected,
     # the SPA no longer needs it and there's no reason to keep handing it
     # out on every poll.
     code: str | None = None
@@ -83,7 +83,7 @@ class DiscoveredDeviceSchema(BaseModel):
 
 class DeviceOptionSchema(BaseModel):
     """Minimal id+name shape for the companion integration's per-command
-    select entity -- picking which ESP to fire a command through. Just
+    select entity: picking which ESP to fire a command through. Just
     enough to populate a dropdown; unlike EspDeviceSummary this deliberately
     doesn't carry entities/connection_state, which the integration has no
     use for here.
@@ -107,7 +107,7 @@ class RecordingSessionResponse(BaseModel):
 class ShapeCandidateSchema(BaseModel):
     """One distinct signal shape seen during a recording session, offered
     to the user to choose from when stop_recording() couldn't resolve the
-    session to a single shape or a recognized protocol on its own -- see
+    session to a single shape or a recognized protocol on its own: see
     esphome/signal_shapes.py.
     """
 
@@ -118,7 +118,7 @@ class ShapeCandidateSchema(BaseModel):
 
 class DetectedProtocolSchema(BaseModel):
     """A recognized multi-shape protocol (today: NEC-family leader +
-    repeat frame) -- both parts are saved together with no user choice
+    repeat frame): both parts are saved together with no user choice
     needed, unlike the ambiguous shape_candidates case.
     """
 
@@ -128,10 +128,10 @@ class DetectedProtocolSchema(BaseModel):
 
 
 class DecodedSignalSchema(BaseModel):
-    """Structural protocol decode of the resolved capture -- "this is NEC,
+    """Structural protocol decode of the resolved capture: "this is NEC,
     address 0x04, command 0x08" for IR (esphome/protocol_decode.py), or
     "this is Princeton, key ..., 24 bits" for RF (esphome/
-    rf_protocol_decode.py) -- independent of and unrelated to
+    rf_protocol_decode.py): independent of and unrelated to
     remote_matches below. address/command are IR-only (0 for an RF
     decode); key_hex/bit_count are RF-only (None for an IR decode)."""
 
@@ -146,7 +146,7 @@ class RemoteMatchSchema(BaseModel):
     """One candidate name suggestion for the just-recorded signal, from
     matching its decoded (protocol, address, command) against the bundled
     remote database (Flipper-IRDB, IRDB, and a Sub-GHz RF source, merged
-    and deduplicated -- see esphome/remote_database_build.py) -- always
+    and deduplicated: see esphome/remote_database_build.py): always
     `source="bundled"` today."""
 
     source: str
@@ -166,19 +166,19 @@ class RecordingStopResponse(BaseModel):
     # - detected_protocol: a recognized multi-shape protocol was found --
     #   also ready to save as-is.
     # - shape_candidates: multiple distinct shapes were captured and
-    #   neither of the above applied -- the frontend must show a picker.
+    #   neither of the above applied: the frontend must show a picker.
     timings: list[int] | None = None
     detected_protocol: DetectedProtocolSchema | None = None
     shape_candidates: list[ShapeCandidateSchema] | None = None
     # Best-effort extras computed from `timings` or detected_protocol's
-    # leader, when either is available -- never set when the response only
+    # leader, when either is available: never set when the response only
     # has shape_candidates (nothing's resolved to decode yet).
     decoded: DecodedSignalSchema | None = None
     remote_matches: list[RemoteMatchSchema] = Field(default_factory=list)
 
 
 class CommandSummary(BaseModel):
-    """List-view shape -- deliberately omits raw_timings, which can be long
+    """List-view shape: deliberately omits raw_timings, which can be long
     and isn't needed to render the home screen's name + IR/RF badge list.
     """
 
@@ -193,7 +193,7 @@ class CommandSummary(BaseModel):
 
 
 class CommandDetail(CommandSummary):
-    """Full shape, including the raw payload -- used by the raw editor and
+    """Full shape, including the raw payload: used by the raw editor and
     by the fire/transmit path, never by the home screen's list view.
     """
 
@@ -203,10 +203,10 @@ class CommandDetail(CommandSummary):
     # Set only for a two-shape command (see esphome/signal_shapes.py):
     # raw_timings is the leader, fired once; repeat_timings is fired
     # (repeat_count - 1) more times. None means a plain single-shape
-    # command -- raw_timings alone, fired repeat_count times, unchanged
+    # command: raw_timings alone, fired repeat_count times, unchanged
     # from before this existed.
     repeat_timings: list[int] | None = None
-    # Informational only (e.g. "nec_leader_repeat") -- set when
+    # Informational only (e.g. "nec_leader_repeat"): set when
     # repeat_timings was auto-detected rather than manually chosen by the
     # user from shape_candidates. Never read by the firing path.
     repeat_protocol: str | None = None
@@ -214,7 +214,7 @@ class CommandDetail(CommandSummary):
 
 class RemoteSearchResultSchema(BaseModel):
     """One candidate from searching the bundled remote database (see
-    esphome/remote_database.py) -- already fully encoded and ready to
+    esphome/remote_database.py): already fully encoded and ready to
     test-fire or save as-is via the normal test-fire/create-command
     endpoints, no extra round-trip needed to resolve it into a real
     signal."""

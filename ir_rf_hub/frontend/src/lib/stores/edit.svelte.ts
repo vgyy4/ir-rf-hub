@@ -8,7 +8,7 @@ class EditWizard {
   command = $state<CommandDetail | null>(null);
   selectedDefaultDeviceId = $state<string | null>(null);
   rawTimingsText = $state("");
-  /** Optional -- a two-shape command's repeat signal (see
+  /** Optional: a two-shape command's repeat signal (see
    * signal_shapes.py). Empty text means "no repeat signal" / cleared.
    */
   repeatTimingsText = $state("");
@@ -73,7 +73,7 @@ class EditWizard {
     return parseTimingsText(this.rawTimingsText);
   }
 
-  /** Same format, but empty text is valid here -- it means "no repeat
+  /** Same format, but empty text is valid here: it means "no repeat
    * signal", not an error. Returns undefined (distinct from null) if the
    * text is non-empty but not a valid list of integers.
    */
@@ -96,7 +96,7 @@ class EditWizard {
         repeat_count: this.repeatCount,
         repeat_timings: repeatTimings,
         // A manually-edited repeat signal no longer reflects what (if
-        // anything) was auto-detected -- only keep the label if the
+        // anything) was auto-detected: only keep the label if the
         // repeat signal itself is unchanged from what was loaded.
         repeat_protocol:
           repeatTimings !== null && this.repeatTimingsText === (this.command.repeat_timings?.join(", ") ?? "")
@@ -125,7 +125,7 @@ class EditWizard {
     this.busy = true;
     this.error = null;
     try {
-      // Original command is deliberately left untouched -- only the new
+      // Original command is deliberately left untouched: only the new
       // one carries the edited payload.
       await createCommand({
         name: this.newCommandName.trim(),
@@ -148,7 +148,7 @@ class EditWizard {
   }
 
   /** Fires the editor's current (possibly unsaved) raw timings against a
-   * chosen device -- lets you verify a hand-edited signal actually does
+   * chosen device: lets you verify a hand-edited signal actually does
    * something before committing to Save. Uses whatever's in the textareas
    * right now, not what's persisted, so editing then testing then editing
    * again always tests the latest text.

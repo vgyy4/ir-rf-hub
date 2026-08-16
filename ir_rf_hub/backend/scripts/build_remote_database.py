@@ -4,10 +4,10 @@ offline snapshot of the merged/deduped remote-code database (see
 esphome/remote_database_build.py for the actual fetch/parse/merge logic,
 shared with the App's own runtime updater).
 
-Not run by the App itself -- only by a maintainer occasionally, to pick
+Not run by the App itself: only by a maintainer occasionally, to pick
 up upstream additions and refresh the committed bundled snapshot that
 ships in the image (the App also refreshes its own separate runtime copy
-in /data periodically -- see remote_database_updater.py -- but the
+in /data periodically: see remote_database_updater.py: but the
 bundled one is what a fresh install has before its first successful
 network fetch, so it's still worth updating by hand now and then too).
 

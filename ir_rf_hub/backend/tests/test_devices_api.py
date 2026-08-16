@@ -18,7 +18,7 @@ from tests.fakes.fake_esphome_server import FakeEspHomeServer, FakeInfraredEntit
 async def _reset_device_manager():
     yield
     await device_manager.disconnect_all()
-    device_manager._sessions.clear()  # noqa: SLF001 -- test isolation between runs
+    device_manager._sessions.clear()  # noqa: SLF001: test isolation between runs
 
 
 @pytest.fixture
@@ -92,7 +92,7 @@ async def test_startup_reconnects_devices_after_session_cache_is_lost(
 ):
     """A backend restart (routine: HA restarts, App updates) wipes
     device_manager's in-memory session cache, which is otherwise the
-    *only* thing connection_state is derived from -- without eagerly
+    *only* thing connection_state is derived from: without eagerly
     reconnecting at startup, a perfectly reachable device would show
     "disconnected" until the user happened to fire/record/test it.
     """
@@ -164,7 +164,7 @@ async def test_update_device_rejects_duplicate_host(client: httpx.AsyncClient, f
     await client.post("/api/devices", json={"name": "First", "host": fake_device.host, "port": fake_device.port})
     other = (await client.post("/api/devices", json={"name": "Second", "host": "10.0.0.77", "port": 6053})).json()
 
-    # must match both host AND port to collide -- a shared host with a
+    # must match both host AND port to collide: a shared host with a
     # different port is a legitimate distinct target (see
     # _ensure_unique_host's comment)
     resp = await client.put(
@@ -175,7 +175,7 @@ async def test_update_device_rejects_duplicate_host(client: httpx.AsyncClient, f
 
 class _FakeConnection:
     """Stands in for esphome.connection.EspHomeConnection in the
-    devices.py module namespace -- monkeypatched in so
+    devices.py module namespace: monkeypatched in so
     _reject_if_encryption_mismatch's throwaway pre-check hits a
     deterministic outcome without a real Noise handshake (the fake
     ESPHome test server is plaintext-only, see
@@ -256,7 +256,7 @@ async def test_update_device_rejects_new_encryption_key_that_is_wrong(
     resp = await client.put(f"/api/devices/{created['id']}", json={"encryption_key": "wrong-key"})
     assert resp.status_code == 422
 
-    # the device is untouched -- still connectable under its old (no-key) config
+    # the device is untouched: still connectable under its old (no-key) config
     unchanged = (await client.get("/api/devices")).json()[0]
     assert unchanged["name"] == "Living Room"
 
@@ -268,7 +268,7 @@ async def test_update_device_without_touching_connection_fields_skips_the_preche
         await client.post("/api/devices", json={"name": "Living Room", "host": fake_device.host, "port": fake_device.port})
     ).json()
 
-    # if the pre-check ran here, this would reject the update -- proves it
+    # if the pre-check ran here, this would reject the update: proves it
     # only fires when host/port/encryption_key/password actually change
     monkeypatch.setattr(
         devices_module, "EspHomeConnection", _fake_connection_raising(DeviceRequiresEncryptionError)

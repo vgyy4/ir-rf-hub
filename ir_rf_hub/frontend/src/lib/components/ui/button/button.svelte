@@ -12,7 +12,7 @@
 				// Hover states are foreground-relative overlays rather than
 				// `bg-muted` / `bg-secondary/80`. Those are near-invisible
 				// wherever the button's own surface is already close to muted
-				// -- a ghost icon button on a popover, or a secondary button on
+				//: a ghost icon button on a popover, or a secondary button on
 				// a tinted panel like the static-IP tip, where fading secondary
 				// to 80% just blends it further into the tint. An overlay keyed
 				// to `foreground` darkens in light mode and lightens in dark,

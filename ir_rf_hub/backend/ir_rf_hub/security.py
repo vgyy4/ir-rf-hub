@@ -3,7 +3,7 @@ integration pairing code.
 
 Pairing is a single opaque code (base64url of a small JSON payload) shown
 once in the App's Settings screen and pasted into one field in the
-integration's config flow -- no separate host/port entry, per the user's
+integration's config flow: no separate host/port entry, per the user's
 explicit choice during design. It carries the App's internal-network host
 and port (so the integration doesn't need zeroconf / host_network to find
 it) plus a random bearer token the integration presents on every call to
@@ -91,7 +91,7 @@ _TOKEN_HASH_PREFIX = "sha256$"
 
 
 def hash_integration_token(token: str) -> str:
-    """A plain SHA-256, deliberately -- not bcrypt/argon2.
+    """A plain SHA-256, deliberately not bcrypt/argon2.
 
     Those exist to make *low-entropy human passwords* expensive to guess.
     This token is 32 random bytes from `secrets.token_urlsafe` (256 bits),
@@ -111,7 +111,7 @@ def verify_integration_token(presented: str, stored: str) -> bool:
     The token is held in plaintext only while the App is still unpaired,
     because the pairing code shown in the UI has to contain it. Once
     something has paired, the stored value is replaced by its hash (see
-    api/rest/integration.py) -- from then on the database holds nothing
+    api/rest/integration.py): from then on the database holds nothing
     that would let a reader authenticate as the integration. Installs
     that paired before this existed keep working on the plaintext branch
     and are upgraded in place on their next authenticated call.

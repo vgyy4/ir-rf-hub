@@ -1,5 +1,5 @@
 """Proves the fake ESPHome server (tests/fakes/fake_esphome_server.py)
-round-trips correctly against the *real* aioesphomeapi.APIClient -- this is
+round-trips correctly against the *real* aioesphomeapi.APIClient: this is
 the Phase 0 spike the design plan called for, confirming the actual wire
 behavior of ir_rf_proxy-style entities before Phase 1 builds
 esphome/connection.py on top of it.

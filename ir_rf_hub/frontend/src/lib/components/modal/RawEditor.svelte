@@ -66,7 +66,7 @@
     </header>
 
     <!-- Signal payloads stay on the always-dark console treatment used by
-         TerminalView, in every palette -- this is raw instrument data. -->
+         TerminalView, in every palette: this is raw instrument data. -->
     <textarea
       class="focus-visible:ring-ring/50 min-h-0 flex-1 resize-none rounded-lg bg-neutral-950 p-4 font-mono text-sm text-green-400 outline-none focus-visible:ring-3"
       bind:value={wizard.rawTimingsText}

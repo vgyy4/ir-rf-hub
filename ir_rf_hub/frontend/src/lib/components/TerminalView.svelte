@@ -20,7 +20,7 @@
   }
 </script>
 
-<!-- Deliberately stays dark regardless of theme -- a raw-signal console
+<!-- Deliberately stays dark regardless of theme: a raw-signal console
      reads as a console, the same way an IDE's terminal panel does. -->
 <div
   bind:this={container}

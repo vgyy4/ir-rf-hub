@@ -8,7 +8,7 @@
   import MoonIcon from "@lucide/svelte/icons/moon";
   import MonitorIcon from "@lucide/svelte/icons/monitor-smartphone";
 
-  // Swatches can't read the palette's own CSS variables -- those only resolve
+  // Swatches can't read the palette's own CSS variables: those only resolve
   // for whichever palette is currently active, so every row would render in
   // the same colours. These are literals: each palette's brand / IR / RF hue
   // in the form that reads well against both a light and a dark popover.

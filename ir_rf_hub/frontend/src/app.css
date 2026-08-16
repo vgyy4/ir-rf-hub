@@ -3,7 +3,7 @@
 
 /* Drive dark mode off a `.dark` class on <html> instead of the OS media
    query, so the Auto/Dark/Light picker (src/lib/stores/theme.svelte.ts) can
-   override it -- Auto still resolves to the system preference, just via JS.
+   override it: Auto still resolves to the system preference, just via JS.
    shadcn's own dark mode is `.dark`-class based too, so the two line up. */
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -21,7 +21,7 @@
                    (`bg-ir/12 text-ir`), which is why neither needs a
                    -foreground pair: the token is always the *text* colour and
                    its own low-opacity tint is the fill. That works in both
-                   schemes -- a dark anchor on white, a pastel on near-black.
+                   schemes: a dark anchor on white, a pastel on near-black.
 
      --success     Device connection state. shadcn has no success token.
 
@@ -201,7 +201,7 @@
 
 /* --- Sorbet -----------------------------------------------------------------
    Widest hue range of the three, and the most overtly playful. Periwinkle
-   brand, coral IR, mint RF -- the strongest signal-type separation. */
+   brand, coral IR, mint RF: the strongest signal-type separation. */
 
 [data-theme="sorbet"] {
   --background: #fdfcfa;
@@ -261,7 +261,7 @@
    The original theme, preserved for anyone who wants it. Unlike the three
    above it keeps tinted chrome, since that character is the whole point of
    keeping it. Skeleton shipped a single approximated ramp used for both
-   schemes; this is the real thing -- Latte for light, Mocha for dark. The
+   schemes; this is the real thing: Latte for light, Mocha for dark. The
    light-mode lavender/pink/teal are darkened from their published values,
    which are too light to carry text on white. */
 
@@ -277,7 +277,7 @@
   --secondary: #e6e9ef;
   --secondary-foreground: #4c4f69;
   --muted: #e6e9ef;
-  /* Latte's subtext1 rather than subtext0 -- subtext0 (#6c6f85) lands at
+  /* Latte's subtext1 rather than subtext0: subtext0 (#6c6f85) lands at
      4.37:1 on this background, just under AA. */
   --muted-foreground: #5c5f77;
   --accent: #dce0e8;

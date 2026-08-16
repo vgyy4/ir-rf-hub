@@ -1,4 +1,4 @@
-"""signal_shapes.py in isolation -- no device/session/HTTP involved, just
+"""signal_shapes.py in isolation: no device/session/HTTP involved, just
 the clustering and NEC-detection logic itself.
 """
 
@@ -57,7 +57,7 @@ def test_detects_nec_leader_and_repeat_regardless_of_arrival_order():
     assert detected.leader_timings == NEC_LEADER
     assert detected.repeat_timings == NEC_REPEAT
 
-    # order shouldn't matter -- repeat captured first, leader second
+    # order shouldn't matter: repeat captured first, leader second
     clusters_reordered = cluster_captures([NEC_REPEAT, NEC_LEADER])
     detected_reordered = detect_multi_shape_protocol(clusters_reordered)
     assert detected_reordered is not None

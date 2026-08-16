@@ -50,7 +50,7 @@ async def test_search_rf_returns_fireable_rf_results(client: httpx.AsyncClient):
     assert resp.status_code == 200
     results = resp.json()
     assert len(results) > 0
-    # RF results are unmodulated -- 0 Hz carrier, unlike IR's 38000.
+    # RF results are unmodulated: 0 Hz carrier, unlike IR's 38000.
     assert all(r["carrier_frequency_hz"] == 0 for r in results)
     assert all(len(r["raw_timings"]) > 0 for r in results)
 

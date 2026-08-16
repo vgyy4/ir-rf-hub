@@ -2,24 +2,24 @@
 databases into the single index format remote_database.py loads. Shared
 by two callers:
 
-- scripts/build_remote_database.py -- the dev-time generator for the
+- scripts/build_remote_database.py: the dev-time generator for the
   committed bundled snapshot (ir_rf_hub/data/remote_db_index.json.gz),
   which ships in the image so search/lookup work even with zero network
   access.
-- main.py's runtime updater -- periodically refreshes a second copy in
+- main.py's runtime updater: periodically refreshes a second copy in
   /data at runtime so the bundled snapshot doesn't go stale between App
   releases (see remote_database_updater.py). Same code path either way,
   so a source added here benefits both without extra work.
 
 Sources today:
-- Flipper-IRDB (github.com/Lucaslhm/Flipper-IRDB, CC0) -- NEC/NECext
+- Flipper-IRDB (github.com/Lucaslhm/Flipper-IRDB, CC0): NEC/NECext
   entries only, and specifically excludes its "_Converted_" category
   (auto-converted entries with placeholder brand/model attribution like
-  "CSV"/"0  1" -- not useful for a name-based search or suggestion).
-- IRDB (github.com/probonopd/irdb) -- NEC-family entries (NEC, NEC1,
+  "CSV"/"0  1": not useful for a name-based search or suggestion).
+- IRDB (github.com/probonopd/irdb): NEC-family entries (NEC, NEC1,
   NEC2, NECx1, NECx2), which all share the identical single-shot D:8,S:8,
   F:8,~F:8 frame shape per the canonical IRP protocol definitions
-  (bengtmartensson/IrpTransmogrifier) -- confirmed empirically to add
+  (bengtmartensson/IrpTransmogrifier): confirmed empirically to add
   real, non-overlapping coverage (measured ~3x the unique codes already
   in Flipper-IRDB alone). IRDB's own license requires informing the irdb
   project of any product using it and including an attribution notice --
@@ -29,27 +29,27 @@ Sources today:
   (jsDelivr) at runtime rather than bundling a static snapshot, so a
   product "benefits from updates ... automatically". Deliberately not
   done that way here: the goal that suggestion is actually protecting
-  against -- shipping a copy that's frozen forever at whatever it was
-  when the product was built -- is already solved by
+  against: shipping a copy that's frozen forever at whatever it was
+  when the product was built: is already solved by
   remote_database_updater.py's periodic re-fetch (checked on startup, on
   every App version bump, and weekly). Fetching this same tree as ~3,200
   individual jsDelivr requests instead of one `git clone` would cost
   materially more (requests, latency, failure surface) for no additional
   freshness over what the periodic refresh already provides, and
-  wouldn't remove the need for a local cache anyway -- offline search
+  wouldn't remove the need for a local cache anyway: offline search
   (this project's whole point, see api/rest/remote_database.py) requires
   a copy already resident locally regardless of how it got fetched.
-- UberGuidoZ/Flipper's Sub-GHz/ folder (GPL-3.0) -- RF, filtered to
+- UberGuidoZ/Flipper's Sub-GHz/ folder (GPL-3.0): RF, filtered to
   Princeton and CAME (see rf_protocol_decode.py's docstring for why only
   these two, and why rolling-code protocols like KeeLoq are excluded
   outright regardless of whether they're decodable). Sparse-cloned (only
-  Sub-GHz/, not the ~2.2GB full repo) but still ~600MB even so -- mostly
+  Sub-GHz/, not the ~2.2GB full repo) but still ~600MB even so: mostly
   photos/diagrams bundled alongside the actual .sub files, which a git
   blob-size filter turns out not to help with once sparse-checkout
   materializes the tree. That size is genuinely too large to re-fetch on
   a schedule on typical add-on hardware, so unlike the two IR sources
   above, this one is NOT part of the runtime updater's periodic refresh
-  (see remote_database_updater.py) -- it's only refreshed when a
+  (see remote_database_updater.py): it's only refreshed when a
   maintainer re-runs scripts/build_remote_database.py for a new App
   release, i.e. bundled-snapshot-only.
 """
@@ -170,7 +170,7 @@ def fetch_flipper_irdb(work_dir: Path) -> list[RawEntry]:
 
 def _parse_irdb_csv(path: Path, brand: str, category: str) -> list[RawEntry]:
     entries: list[RawEntry] = []
-    # Filenames are "<device>,<subdevice>.csv" -- IRDB has no real model
+    # Filenames are "<device>,<subdevice>.csv": IRDB has no real model
     # name field at all (unlike Flipper's), so the numeric pair is the
     # closest thing to a distinguishing identifier it actually provides.
     model = f"Device {path.stem}"
@@ -190,7 +190,7 @@ def _parse_irdb_csv(path: Path, brand: str, category: str) -> list[RawEntry]:
                 if not (0 <= device <= 255 and 0 <= subdevice <= 255 and 0 <= function <= 255):
                     continue
                 # IRDB stores only one function byte, never an
-                # independently-captured complement -- so unlike Flipper's
+                # independently-captured complement: so unlike Flipper's
                 # data, "NEC" vs "NECext" here can only be judged from the
                 # address half; the command half is always exactly the
                 # complement by construction (protocol_decode.encode_nec
@@ -242,7 +242,7 @@ def _parse_subghz_file(path: Path, category: str, brand: str) -> RawEntry | None
     text = path.read_text(encoding="utf-8", errors="replace")
     filetype_match = _SUBGHZ_FIELD_RE["filetype"].search(text)
     if filetype_match is None or "Key File" not in filetype_match[1]:
-        return None  # "RAW File" -- a raw capture, not a parsed protocol+key
+        return None  # "RAW File": a raw capture, not a parsed protocol+key
 
     protocol_match = _SUBGHZ_FIELD_RE["protocol"].search(text)
     bit_match = _SUBGHZ_FIELD_RE["bit"].search(text)
@@ -277,7 +277,7 @@ def _parse_subghz_file(path: Path, category: str, brand: str) -> RawEntry | None
 
 def fetch_flipper_subghz(work_dir: Path) -> list[RawEntry]:
     """Only ever called by scripts/build_remote_database.py's CLI, never
-    by the runtime updater -- see this module's docstring for why (~600MB
+    by the runtime updater: see this module's docstring for why (~600MB
     sparse-clone, too large to re-fetch on a schedule)."""
     repo_dir = work_dir / "flipper-subghz"
     _git_sparse_clone(FLIPPER_SUBGHZ_URL, repo_dir, "Sub-GHz")
@@ -287,7 +287,7 @@ def fetch_flipper_subghz(work_dir: Path) -> list[RawEntry]:
         rel_parts = sub_file.relative_to(subghz_root).parts
         category = rel_parts[0]
         # Files sit at varying depth (Category/File.sub, Category/Brand/
-        # File.sub, Category/Sub/Brand/File.sub, ...) -- the immediate
+        # File.sub, Category/Sub/Brand/File.sub, ...): the immediate
         # parent directory is the closest thing to "brand" at any depth;
         # falls back to the category itself for files with no brand
         # subfolder at all.
@@ -334,12 +334,12 @@ def merge_and_dedupe(entries: list[RawEntry]) -> dict[str, list[dict]]:
 def build_index(work_dir: Path, *, include_subghz: bool = True) -> dict[str, list[dict]]:
     """Clones every source into work_dir, parses, and returns the final
     merged+deduped index. Network access + at least several seconds
-    required (minutes, if include_subghz -- see fetch_flipper_subghz's
-    docstring) -- callers decide when that's acceptable.
+    required (minutes, if include_subghz: see fetch_flipper_subghz's
+    docstring): callers decide when that's acceptable.
 
     include_subghz defaults to True (the dev CLI script's own use, for
     building the full bundled snapshot) but the runtime updater always
-    passes False -- its periodic refresh only covers the two small IR
+    passes False: its periodic refresh only covers the two small IR
     sources, never the ~600MB Sub-GHz source.
     """
     entries: list[RawEntry] = []

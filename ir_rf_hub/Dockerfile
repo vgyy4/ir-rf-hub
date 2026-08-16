@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 
 # Must be declared before the FIRST FROM in the file to be usable inside
-# any later FROM's image reference -- Docker only extends ARG scope into
+# any later FROM's image reference: Docker only extends ARG scope into
 # FROM instructions for ARGs declared before the first FROM, not merely
 # before the FROM that uses them. Declaring it later (as this file
 # originally did) silently resolves to blank, which buildx then rejects.
 #
-# Pinned rather than `:latest` for build reproducibility -- since (per the
+# Pinned rather than `:latest` for build reproducibility: since (per the
 # comment at stage 2 below) this default is now the *actual* base image,
 # not a placeholder Supervisor overwrites, an untagged `latest` would mean
 # every rebuild silently picks up whatever HA last pushed. Check
@@ -18,7 +18,7 @@ ARG BUILD_FROM=ghcr.io/home-assistant/base:3.24-2026.06.1
 # A separate, non-arch-pinned stage: the frontend build only ever needs to
 # *run* on the builder's host platform, it never runs on-device, so it
 # doesn't need to track BUILD_FROM/arch. `--platform=$BUILDPLATFORM` makes
-# that explicit rather than assumed -- buildx does NOT infer this on its
+# that explicit rather than assumed: buildx does NOT infer this on its
 # own; an unpinned stage otherwise builds for TARGETPLATFORM, which is only
 # ever the same as the host here by coincidence (CI happens to run each
 # arch on a native runner today). Pinning it also means this stage's cache
@@ -38,7 +38,7 @@ RUN npm run build
 # --- stage 2: the App image --------------------------------------------------
 # https://developers.home-assistant.io/docs/apps/configuration#app-dockerfile
 # Since Supervisor 2026.04.0, BUILD_FROM is no longer injected by the
-# builder -- the default above IS the actual base image, and build.yaml
+# builder: the default above IS the actual base image, and build.yaml
 # (which used to map this per-arch) is deprecated and no longer read.
 # This is a plain Alpine base (not a python-flavored variant, which no
 # longer exists as a separate published image), so Python is installed
@@ -61,17 +61,17 @@ COPY backend/pyproject.toml /app/pyproject.toml
 COPY backend/ir_rf_hub /app/ir_rf_hub
 COPY --from=frontend-build /backend/ir_rf_hub/static /app/ir_rf_hub/static
 
-# Same cache-mount reasoning as the npm ci step above -- --no-cache-dir is
+# Same cache-mount reasoning as the npm ci step above: --no-cache-dir is
 # dropped since the mount already keeps pip's download cache out of the
 # final image layer, so there's no longer a size cost to letting pip reuse
 # already-downloaded wheels for unchanged dependencies.
 RUN --mount=type=cache,target=/root/.cache/pip pip install --break-system-packages .
 
 # alembic.ini sits next to pyproject.toml, not inside the ir_rf_hub/
-# package -- `pip install .` (packages = ["ir_rf_hub"]) never ships it, so
+# package: `pip install .` (packages = ["ir_rf_hub"]) never ships it, so
 # it has to be placed explicitly at a fixed path the running app can find
 # regardless of where pip decided to install the package itself (that's
-# not /app -- see IR_RF_HUB_ALEMBIC_INI in the run script and config.py).
+# not /app: see IR_RF_HUB_ALEMBIC_INI in the run script and config.py).
 COPY backend/alembic.ini /app/alembic.ini
 
 COPY rootfs /

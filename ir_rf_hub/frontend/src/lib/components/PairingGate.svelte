@@ -52,7 +52,7 @@
       <h2 class="text-xl font-semibold tracking-tight">Connect the companion integration</h2>
       <p class="text-muted-foreground text-sm">
         Install the <strong>IR/RF Hub</strong> integration in Home Assistant. It should find
-        this App on its own -- check Settings &rarr; Devices &amp; services for a "Discovered" card
+        this App on its own: check Settings &rarr; Devices &amp; services for a "Discovered" card
         and confirm it. This screen will move on automatically once you're paired.
       </p>
     </div>

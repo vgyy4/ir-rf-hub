@@ -1,7 +1,7 @@
 export type ThemeMode = "auto" | "dark" | "light";
 export type Palette = "seaglass" | "meadow" | "sorbet" | "catppuccin";
 
-/** Palette is independent of light/dark -- every palette defines both schemes,
+/** Palette is independent of light/dark: every palette defines both schemes,
  * so the two settings compose rather than override each other. `catppuccin` is
  * the pre-shadcn theme, kept for anyone who preferred it. */
 export const PALETTES: { id: Palette; label: string }[] = [

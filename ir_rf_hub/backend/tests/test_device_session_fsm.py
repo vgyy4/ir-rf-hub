@@ -1,6 +1,6 @@
 """Exercises the half-duplex concurrency design in device_session.py against
 the fake ESPHome server: every state transition in the design plan's FSM,
-plus the two contention scenarios that matter most -- a second recording
+plus the two contention scenarios that matter most: a second recording
 attempt while one is active (must reject fast), and a transmit attempt
 while a recording is active (must queue and complete once the recording
 ends, not be dropped or racily interleaved).
@@ -89,7 +89,7 @@ async def test_recording_keeps_every_capture_in_arrival_order(
 ):
     # Which capture is "the" signal (vs. a repeat, vs. noise) is
     # signal_shapes.py's job, done once at stop time with the full
-    # picture -- the session itself just needs to record everything that
+    # picture: the session itself just needs to record everything that
     # arrived, in order, without picking favorites.
     full_frame = [4500, -4500] + [560, -560] * 32
     garbled_echo = [278, -997, 276, -398, 278, -699, 275]
@@ -118,7 +118,7 @@ async def test_clear_and_retry_resets_buffer_without_ending_session(
     connected_session.clear_recording(recording.id)
     assert recording.capture_count == 0
     assert recording.captures == []
-    # Still the same active session -- no reconnect, no state change.
+    # Still the same active session: no reconnect, no state change.
     assert connected_session.state == DeviceSessionState.rx_active
 
     await fake_device.emit_receive_event(key=1, timings=[200, -200])
@@ -169,10 +169,10 @@ async def test_transmit_then_settle_before_releasing_device(
 
 async def test_recording_start_times_out_if_device_stuck_transmitting(connected_session: DeviceSession):
     # Hold the device lock open by starting a transmit that never lets go
-    # (simulate a stuck/slow device) -- start_recording must give up after
+    # (simulate a stuck/slow device): start_recording must give up after
     # its bounded wait rather than hanging forever.
     async def _hold_lock_forever():
-        await connected_session._device_lock.acquire()  # noqa: SLF001 -- test-only direct lock manipulation
+        await connected_session._device_lock.acquire()  # noqa: SLF001: test-only direct lock manipulation
         await asyncio.sleep(10)
 
     holder = asyncio.ensure_future(_hold_lock_forever())
@@ -184,4 +184,4 @@ async def test_recording_start_times_out_if_device_stuck_transmitting(connected_
     holder.cancel()
     with pytest.raises(asyncio.CancelledError):
         await holder
-    connected_session._device_lock.release()  # noqa: SLF001 -- undo the manual acquire above
+    connected_session._device_lock.release()  # noqa: SLF001: undo the manual acquire above

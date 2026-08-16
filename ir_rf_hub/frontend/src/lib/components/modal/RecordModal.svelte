@@ -59,7 +59,7 @@
     } else {
       haptics.success();
       // The list behind the modal is WebSocket-synced, but the `done` step
-      // keeps the modal open over it -- refresh so it's already correct
+      // keeps the modal open over it: refresh so it's already correct
       // when the user closes rather than a beat later.
       void commandsStore.refresh();
     }
@@ -122,7 +122,7 @@
       <span class="flex-1">
         <strong class="block text-sm">Write raw timings instead</strong>
         <span class="text-muted-foreground text-xs">
-          Type the signal in by hand -- no device or recording needed.
+          Type the signal in by hand: no device or recording needed.
         </span>
       </span>
       <ChevronRightIcon class="text-muted-foreground size-4 shrink-0" />
@@ -143,7 +143,7 @@
   {:else if wizard.step === "raw"}
     <h2 class="mb-1 text-lg font-semibold tracking-tight">Write raw timings</h2>
     <p class="text-muted-foreground mb-4 text-sm">
-      Comma-separated microseconds. Positive = mark (on), negative = space (off) -- the same format
+      Comma-separated microseconds. Positive = mark (on), negative = space (off): the same format
       the ESP records in.
     </p>
 
@@ -180,7 +180,7 @@
         <span class="text-muted-foreground text-sm">Carrier (Hz)</span>
         <Input type="number" class="mt-1" min="0" bind:value={wizard.carrierFrequencyHz} />
         <span class="text-muted-foreground mt-1 block text-xs">
-          {wizard.type === "ir" ? "38000 suits most IR remotes." : "0 -- RF is unmodulated."}
+          {wizard.type === "ir" ? "38000 suits most IR remotes." : "0: RF is unmodulated."}
         </span>
       </label>
     </div>
@@ -225,7 +225,7 @@
     <p class="text-muted-foreground mb-5 text-sm">
       {wizard.captures.length === 0
         ? "Point the remote at the receiver and press a button."
-        : "Press it a few more times if you like -- repeats help. Next when you're done."}
+        : "Press it a few more times if you like: repeats help. Next when you're done."}
     </p>
     <TerminalView captures={wizard.captures} />
     {#if wizard.error}
@@ -362,7 +362,7 @@
       <Input type="number" class="mt-1" min="1" bind:value={wizard.repeatCount} />
       <span class="text-muted-foreground mt-1 block text-xs">
         How many times to send the signal when fired. Pre-filled with how many times your remote
-        repeated it during recording -- some receivers need to see the same code several times in a
+        repeated it during recording: some receivers need to see the same code several times in a
         row to act on it.
       </span>
     </label>

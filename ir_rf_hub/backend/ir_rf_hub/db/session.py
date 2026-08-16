@@ -16,7 +16,7 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 def _set_sqlite_pragmas(dbapi_connection, _connection_record) -> None:
     cursor = dbapi_connection.cursor()
     # WAL mode lets the App keep serving reads/writes while backup_pre.sh
-    # checkpoints -- see app/rootfs/backup_pre.sh for the other half of this.
+    # checkpoints: see app/rootfs/backup_pre.sh for the other half of this.
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()

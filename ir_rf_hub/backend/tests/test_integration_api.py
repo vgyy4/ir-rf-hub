@@ -95,7 +95,7 @@ async def test_integration_fire_without_default_fails_loudly(client: httpx.Async
 
 async def test_integration_fire_accepts_an_explicit_device_id(client: httpx.AsyncClient):
     # The select entity (device.py's async_select_option) posts an
-    # explicit device_id -- distinct from a bare button/switch press,
+    # explicit device_id: distinct from a bare button/switch press,
     # which relies on fire_command's own default/single-candidate
     # fallback instead.
     token = await _token(client)

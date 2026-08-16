@@ -1,23 +1,23 @@
 """Decodes/encodes raw mark/space timings for well-known fixed-code
-sub-GHz RF (OOK) protocols -- the RF equivalent of protocol_decode.py.
+sub-GHz RF (OOK) protocols: the RF equivalent of protocol_decode.py.
 
 Deliberately excludes rolling-code protocols (KeeLoq and similar, common
 in car fobs and newer garage openers): a stored code for those is stale
 after one real use by design, so there is nothing useful to encode/replay
-even with a perfect decoder. Only fixed-code protocols -- the same code
-works every time -- are in scope here.
+even with a perfect decoder. Only fixed-code protocols: the same code
+works every time: are in scope here.
 
 Princeton (PT2262-style) and CAME timing constants and bit encodings are
 transcribed directly from Flipper's own firmware source
 (flipperdevices/flipperzero-firmware, lib/subghz/protocols/princeton.c
-and came.c), not guessed from generic protocol descriptions -- RF timing
+and came.c), not guessed from generic protocol descriptions: RF timing
 conventions vary enough between real implementations that guessing wrong
 would silently produce a non-functional code, worse than not supporting
 the protocol at all.
 
 Both use the same "Key:" representation Flipper's own .sub files use: an
 8-byte (64-bit) big-endian hex string where only the low `bit_count` bits
-are significant -- this is what lets rf_database.py's bundled index be
+are significant: this is what lets rf_database.py's bundled index be
 built directly from real .sub files with no re-encoding step, mirroring
 protocol_decode.py's address_bytes/command_bytes matching Flipper's own
 .ir convention for the same reason.
@@ -80,7 +80,7 @@ def decode_princeton(
     """Classifies each (mark, space) pair as bit 1 (long mark ~3TE, short
     space ~1TE) or bit 0 (short mark ~1TE, long space ~3TE) until a pair
     that fits neither shape (the stop bit + guard time, or a malformed
-    capture) -- mirrors decode_nec's structural, not-full-validation
+    capture): mirrors decode_nec's structural, not-full-validation
     approach. Needs at least 24 bits (Princeton's own minimum) to accept.
     """
 
@@ -110,8 +110,8 @@ def decode_princeton(
 # --- CAME --------------------------------------------------------------------
 # lib/subghz/protocols/came.c: te_short=320, te_long=640 default. Frame is
 # a header gap (space, te_short * a per-bit-count multiplier), a start bit
-# (mark, te_short), then each data bit as a (space, mark) pair -- SPACE
-# first, unlike Princeton -- bit "1" = space te_long + mark te_short, bit
+# (mark, te_short), then each data bit as a (space, mark) pair: SPACE
+# first, unlike Princeton: bit "1" = space te_long + mark te_short, bit
 # "0" = space te_short + mark te_long (MSB first). No explicit stop
 # bit/guard time is added by the encoder itself.
 _CAME_DEFAULT_TE_SHORT_US = 320
@@ -149,7 +149,7 @@ def decode_came(
     tolerance: float = 0.4,
 ) -> DecodedRfSignal | None:
     """Skips the leading header gap + start bit (by shape, not exact
-    duration -- header length varies by bit count, see
+    duration: header length varies by bit count, see
     _CAME_HEADER_TE_MULTIPLIER), then classifies each (space, mark) pair
     the same tolerant way decode_princeton does for its (mark, space)
     pairs."""
@@ -160,7 +160,7 @@ def decode_came(
     if len(timings) < 4:
         return None
     # timings[0] is the header gap (space, large), timings[1] the start
-    # bit (mark, ~te_short) -- both skipped by position, not matched.
+    # bit (mark, ~te_short): both skipped by position, not matched.
     if timings[0] >= 0 or not close(timings[1], te_short_us):
         return None
 

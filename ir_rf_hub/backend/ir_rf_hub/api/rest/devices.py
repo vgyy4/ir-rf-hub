@@ -32,7 +32,7 @@ from ir_rf_hub.supervisor_network import get_host_network
 router = APIRouter(prefix="/api/devices", tags=["devices"])
 
 # Fields where changing the value means "must actually reach this device
-# again with these credentials" -- update_device only bothers with the
+# again with these credentials": update_device only bothers with the
 # throwaway pre-check below when one of these is part of the request.
 _CONNECTION_FIELDS = {"host", "port", "encryption_key", "password"}
 
@@ -46,7 +46,7 @@ async def _ensure_unique_name(name: str, session: AsyncSession, *, exclude_id: s
 
 
 async def _ensure_unique_host(host: str, port: int, session: AsyncSession, *, exclude_id: str | None = None) -> None:
-    # Keyed on (host, port) rather than host alone -- the same host with a
+    # Keyed on (host, port) rather than host alone: the same host with a
     # different port is a legitimate, if unusual, distinct connection
     # target (e.g. more than one ESPHome instance behind the same
     # forwarded/loopback address in a dev setup), not "the same device
@@ -67,7 +67,7 @@ def _encryption_error_message(exc: DeviceUnreachableError) -> str:
         )
     if isinstance(exc, DeviceEncryptionKeyInvalidError):
         return "That encryption key is incorrect for this device."
-    return "An encryption key was entered, but this device isn't configured to use encryption -- leave the key blank."
+    return "An encryption key was entered, but this device isn't configured to use encryption: leave the key blank."
 
 
 async def _reject_if_encryption_mismatch(
@@ -77,7 +77,7 @@ async def _reject_if_encryption_mismatch(
     misconfiguration early with an actionable message, before the device
     row is ever created or modified. Deliberately narrow: a device that's
     merely offline or slow is still saved as usual by the real connect
-    attempt that follows this -- only these three specific,
+    attempt that follows this: only these three specific,
     certain-to-keep-failing cases are rejected outright, so the
     (redundant, but harmless) double-connect on the happy path stays rare.
     """
@@ -170,7 +170,7 @@ async def update_device(
         )
 
     if _CONNECTION_FIELDS & updates.keys():
-        # Only the fields actually being changed matter here -- anything
+        # Only the fields actually being changed matter here: anything
         # not in the request keeps its current (decrypted, for the
         # secrets) value as the candidate to test against.
         candidate_encryption_key = (
@@ -201,7 +201,7 @@ async def update_device(
         setattr(device, field, value)
 
     await session.commit()
-    # Connection settings may have changed -- drop any live session so the
+    # Connection settings may have changed: drop any live session so the
     # next use reconnects with the new host/port/credentials.
     await device_manager.disconnect(device_id)
     await session.refresh(device, attribute_names=["entities"])
@@ -215,7 +215,7 @@ async def delete_device(device_id: str, session: AsyncSession = Depends(get_sess
         raise HTTPException(404, "Device not found")
     await device_manager.disconnect(device_id)
     # Commands that default to this device fall back to "ask which ESP"
-    # behavior via the FK's ON DELETE SET NULL -- no cascade, no block.
+    # behavior via the FK's ON DELETE SET NULL: no cascade, no block.
     await session.delete(device)
     await session.commit()
 
@@ -241,9 +241,9 @@ async def test_device(device_id: str, session: AsyncSession = Depends(get_sessio
 @router.get("/discover", response_model=list[DiscoveredDeviceSchema])
 async def discover_devices(session: AsyncSession = Depends(get_session)) -> list[DiscoveredDeviceSchema]:
     """Merges two sources: the App's own local mDNS browse (works if
-    Supervisor's Multicast plugin reaches this container -- not
+    Supervisor's Multicast plugin reaches this container: not
     guaranteed for every install) and whatever the companion integration
-    most recently reported (reliable -- it browses from inside Home
+    most recently reported (reliable: it browses from inside Home
     Assistant Core, see integration_discovery.py). Local results win on
     a host collision since they're fresher (this request just ran it).
     """
@@ -263,7 +263,7 @@ async def host_network() -> HostNetworkSchema:
     Supervisor knows the real values for the interface Home Assistant is on
     (`hassio_api: true` grants us the token); the ESP is assumed to share
     that subnet, which holds whenever they're on the same LAN. If Supervisor
-    can't be reached -- local dev, or a Supervisor-less install -- we fall
+    can't be reached: local dev, or a Supervisor-less install: we fall
     back to the convention this tip used to assume unconditionally, and flag
     it so the UI can say it's a guess rather than stating it as fact.
     """

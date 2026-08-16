@@ -1,12 +1,12 @@
 """Decodes raw mark/space timings into a (protocol, address, command)
 triple for well-known consumer IR encodings, when a capture cleanly
-matches one. Purely structural decoding -- this says "this is NEC,
+matches one. Purely structural decoding: this says "this is NEC,
 address 0x00DF, command 0x1CE3", never "this is a Samsung TV remote"
 (that's flipper_irdb.py's job, built on top of this).
 
 NEC/NECext's `address_bytes`/`command_bytes` are deliberately formatted to
 match the flipper-format `.ir` file convention exactly (four
-space-separated uppercase hex bytes, e.g. "00 DF 00 00") -- that's what
+space-separated uppercase hex bytes, e.g. "00 DF 00 00"): that's what
 lets flipper_irdb.py's bundled index, built from real Flipper-format
 files, be looked up directly by these fields with no re-encoding step.
 """
@@ -21,7 +21,7 @@ class DecodedSignal:
     protocol: str  # "NEC" | "NECext" | "SIRC" | "SIRC15" | "SIRC20"
     address: int
     command: int
-    # Only meaningful for NEC/NECext -- "" for protocols that don't have a
+    # Only meaningful for NEC/NECext: "" for protocols that don't have a
     # Flipper-format equivalent wired up (see flipper_irdb.py).
     address_bytes: str = ""
     command_bytes: str = ""
@@ -71,12 +71,12 @@ _NEC_TRAILING_MARK = 562
 
 
 def encode_nec(address_bytes: str, command_bytes: str) -> list[int]:
-    """Inverse of decode_nec -- renders Flipper-format address/command byte
+    """Inverse of decode_nec: renders Flipper-format address/command byte
     strings (e.g. "00 DF 00 00", the same format remote_database.py's
     bundled index stores) back into a fireable raw timing list: header, the
     same 4 data bytes decode_nec reads (address low/high, command
     low/high), and a trailing mark to close the frame, matching how a real
-    NEC transmitter -- and ir_rf_proxy -- ends a burst. Only the first two
+    NEC transmitter: and ir_rf_proxy: ends a burst. Only the first two
     space-separated bytes of each string are meaningful (see
     protocol_decode.py's module docstring); the trailing "00 00" is always
     padding in the bundled dataset.
@@ -110,7 +110,7 @@ def decode_nec(timings: list[int]) -> DecodedSignal | None:
     # Classic NEC redundantly repeats each byte's bitwise complement as a
     # cheap integrity check, freeing up no extra address space; "extended"
     # NEC (NECext) drops that redundancy for a real 16-bit address instead.
-    # Whether *either* check fails is enough to call it NECext -- Flipper's
+    # Whether *either* check fails is enough to call it NECext: Flipper's
     # own convention (confirmed against real Flipper-IRDB samples) still
     # packs both fields as raw 16-bit pairs either way.
     is_standard = addr_inv == (~addr & 0xFF) and cmd_inv == (~cmd & 0xFF)
@@ -127,7 +127,7 @@ def decode_nec(timings: list[int]) -> DecodedSignal | None:
 
 
 # --- Sony SIRC -------------------------------------------------------------
-# Timings: header mark, then N data bits as (mark, space) pairs -- mark
+# Timings: header mark, then N data bits as (mark, space) pairs: mark
 # duration encodes the bit this time (pulse-width encoding), space is a
 # roughly-constant gap. 12/15/20 bits depending on device family.
 # https://www.sbprojects.net/knowledge/ir/sirc.php
@@ -170,7 +170,7 @@ _DECODERS = (decode_nec, decode_sirc)
 def decode_signal(timings: list[int]) -> DecodedSignal | None:
     """Tries each known decoder in turn; None if nothing recognized the
     shape. Cheap and side-effect-free enough to call on every stop_recording
-    -- see api/rest/recording.py."""
+   : see api/rest/recording.py."""
     for decoder in _DECODERS:
         result = decoder(timings)
         if result is not None:

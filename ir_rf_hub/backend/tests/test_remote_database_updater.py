@@ -33,7 +33,7 @@ def test_needs_refresh_true_when_no_meta_exists():
 
 def test_needs_refresh_false_when_recently_updated_same_version(monkeypatch: pytest.MonkeyPatch):
     # remote_database_updater captured its own `from ir_rf_hub import
-    # __version__` reference at import time -- patching that local name
+    # __version__` reference at import time: patching that local name
     # (not ir_rf_hub.__version__ itself) is what _needs_refresh() reads.
     monkeypatch.setattr(remote_database_updater, "__version__", "1.2.3")
     _write_meta("1.2.3", datetime.now(UTC))

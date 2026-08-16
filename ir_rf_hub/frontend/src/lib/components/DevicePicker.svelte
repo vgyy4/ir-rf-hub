@@ -16,7 +16,7 @@
 
 {#if devices.length === 0}
   <p class="text-muted-foreground text-sm italic">
-    No matching ESPHome devices found. Add one with the "Devices" button first -- it'll need
+    No matching ESPHome devices found. Add one with the "Devices" button first: it'll need
     <code>ir_rf_proxy</code> in its ESPHome YAML (see the
     <a
       class="text-foreground underline underline-offset-2"

@@ -9,7 +9,7 @@ def _bits_lsb_first(value: int, width: int) -> list[int]:
 
 def _nec_signal(addr: int, addr_inv: int, cmd: int, cmd_inv: int) -> list[int]:
     """Builds a synthetic NEC-shaped raw timing list from four literal
-    bytes -- mirrors exactly how a real ESPHome capture would look for
+    bytes: mirrors exactly how a real ESPHome capture would look for
     that address/command pair (header, then 32 (mark, space) bit pairs,
     mark ~562us constant, space 562us for a 0 bit or 1687us for a 1 bit).
     """
@@ -31,7 +31,7 @@ def _sirc_signal(command: int, address: int, bits: int) -> list[int]:
 
 
 def test_decode_nec_standard_address_and_command_inversion_checks_out():
-    # addr_inv/cmd_inv are the real complement of addr/cmd -- the classic
+    # addr_inv/cmd_inv are the real complement of addr/cmd: the classic
     # NEC redundancy check that distinguishes it from NECext.
     signal = _nec_signal(addr=0x04, addr_inv=0xFB, cmd=0x08, cmd_inv=0xF7)
     decoded = decode_nec(signal)
@@ -45,11 +45,11 @@ def test_decode_nec_standard_address_and_command_inversion_checks_out():
 
 def test_decode_nec_extended_address_when_inversion_check_fails():
     # Real sample from Flipper-IRDB (TVs/AWA/AWA_MSDV3268O5D0.ir, "Power"):
-    # address "00 DF 00 00" -- DF is not ~00, so this is NECext with a
+    # address "00 DF 00 00": DF is not ~00, so this is NECext with a
     # real 16-bit address rather than an inverted-redundancy pair. The
     # round-trip through address_bytes/command_bytes reproducing the exact
     # same byte strings is what makes the bundled Flipper index lookup
-    # (flipper_irdb.py) work -- it's keyed on these strings verbatim.
+    # (flipper_irdb.py) work: it's keyed on these strings verbatim.
     signal = _nec_signal(addr=0x00, addr_inv=0xDF, cmd=0x1C, cmd_inv=0xE3)
     decoded = decode_nec(signal)
     assert decoded is not None
@@ -83,7 +83,7 @@ def test_decode_sirc_20_bit_extended():
 def test_encode_nec_round_trips_through_decode_nec():
     # Same real Flipper-IRDB sample as test_decode_nec_extended_address_
     # when_inversion_check_fails: encoding it and decoding the result
-    # should reproduce the exact same address_bytes/command_bytes -- this
+    # should reproduce the exact same address_bytes/command_bytes: this
     # is exactly the property the search-and-fire feature depends on
     # (remote_database.py's search results are encoded with this function).
     timings = encode_nec(address_bytes="00 DF 00 00", command_bytes="1C E3 00 00")

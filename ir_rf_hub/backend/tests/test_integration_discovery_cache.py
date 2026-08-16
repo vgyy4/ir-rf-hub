@@ -26,7 +26,7 @@ def test_returns_what_was_just_reported():
 
 def test_expires_reports_older_than_the_staleness_window(monkeypatch: pytest.MonkeyPatch):
     # Patch the recorded timestamp directly rather than time.monotonic
-    # itself -- that's the real, shared `time` module, and asyncio's own
+    # itself: that's the real, shared `time` module, and asyncio's own
     # event loop also calls time.monotonic() for scheduling.
     set_reported_devices([DiscoveredDeviceSchema(name="esp1", host="10.0.0.5", port=6053)])
     monkeypatch.setattr(integration_discovery, "_reported_at", integration_discovery._reported_at - 301)

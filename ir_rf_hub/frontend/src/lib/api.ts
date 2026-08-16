@@ -2,9 +2,9 @@
 // served from a dynamic per-session path (/api/hassio_ingress/<token>/),
 // so a request to "/api/health" would hit the Home Assistant frontend's
 // own root instead of being proxied to this App. A relative "api/health"
-// resolves against the current document's path in both contexts -- plain
+// resolves against the current document's path in both contexts: plain
 // http://host:8099/ in local dev, and the ingress-prefixed path in
-// production -- and the dev server proxy in vite.config.ts forwards it to
+// production: and the dev server proxy in vite.config.ts forwards it to
 // the backend on :8099 either way.
 const API_BASE = "api/";
 
@@ -114,7 +114,7 @@ export function updateDevice(id: string, payload: UpdateDeviceRequest): Promise<
 }
 
 // Forces a fresh reconnect (dropping any cached session first) and
-// re-discovers entities -- what to call after e.g. reflashing an ESP
+// re-discovers entities: what to call after e.g. reflashing an ESP
 // with new IR/RF hardware, rather than waiting for the next incidental
 // use of the device to happen to notice.
 export function testDevice(id: string): Promise<EspDeviceSummary> {
@@ -144,7 +144,7 @@ export function devicesWithTransmitter(devices: EspDeviceSummary[], type: Signal
 }
 
 // The receiving entity's frequency_hz is the carrier the signal was
-// actually demodulated at (e.g. 38kHz for IR) -- recordings must be
+// actually demodulated at (e.g. 38kHz for IR): recordings must be
 // transmitted back at that same carrier, or most real-world receivers
 // (TVs included) won't register anything at all, no matter how close the
 // transmitter is. See recording.svelte.ts's startRecording().
@@ -239,7 +239,7 @@ export interface CommandDetail extends CommandSummary {
   // null means a plain single-shape command, unchanged from before this
   // existed. See the backend's esphome/signal_shapes.py.
   repeat_timings: number[] | null;
-  // Informational only (e.g. "nec_leader_repeat") -- set when
+  // Informational only (e.g. "nec_leader_repeat"): set when
   // repeat_timings was auto-detected rather than manually chosen.
   repeat_protocol: string | null;
 }
@@ -297,7 +297,7 @@ export interface TestFireRequest {
 }
 
 /** Fires an in-progress raw editor payload directly, without it existing
- * as (or being saved as) a Command first -- see backend's test_fire().
+ * as (or being saved as) a Command first: see backend's test_fire().
  */
 export function testFireRaw(payload: TestFireRequest): Promise<void> {
   return request<void>("commands/test-fire", { method: "POST", body: JSON.stringify(payload) });
