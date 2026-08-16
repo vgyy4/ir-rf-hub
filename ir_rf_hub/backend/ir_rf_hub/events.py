@@ -1,6 +1,6 @@
 """In-process pub/sub used to fan events out to every open /api/ws
 connection (SPA tabs and the companion integration's WS client alike).
-Deliberately just an asyncio broadcast, not a message broker -- this is a
+Deliberately just an asyncio broadcast, not a message broker: this is a
 single-process, single-worker app (see main.py), so there's no cross-process
 delivery problem to solve.
 """

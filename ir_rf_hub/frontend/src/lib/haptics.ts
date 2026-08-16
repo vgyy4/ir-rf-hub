@@ -5,7 +5,7 @@
  *
  * 1. The Home Assistant Companion App's "external bus". Both the iOS and
  *    Android apps expose a JS bridge that accepts a `haptic` message and
- *    plays a real platform haptic -- on iOS that is the Taptic Engine,
+ *    plays a real platform haptic: on iOS that is the Taptic Engine,
  *    which the web Vibration API cannot reach at all. The bridge is
  *    injected into the *top-level* frontend window rather than our iframe,
  *    but Ingress serves this app from the same origin as Home Assistant,
@@ -38,7 +38,7 @@ function reducedMotion(): boolean {
 }
 
 /** Us first, then the frames above us. Accessing a cross-origin parent
- * throws, hence the per-window try/catch -- under Ingress it is same-origin,
+ * throws, hence the per-window try/catch: under Ingress it is same-origin,
  * but this file should not assume it is always framed by Home Assistant. */
 function bridgeCandidates(): ExternalBusWindow[] {
   const windows: ExternalBusWindow[] = [window as ExternalBusWindow];
@@ -49,7 +49,7 @@ function bridgeCandidates(): ExternalBusWindow[] {
         windows.push(candidate as ExternalBusWindow);
       }
     } catch {
-      // Cross-origin frame -- nothing reachable here.
+      // Cross-origin frame: nothing reachable here.
     }
   }
   return windows;
@@ -77,7 +77,7 @@ function sendExternalHaptic(hapticType: HaHapticType): boolean {
       }
     } catch {
       // Bridge present but unhappy, or the frame turned out to be
-      // cross-origin after all -- fall through to the next candidate.
+      // cross-origin after all: fall through to the next candidate.
     }
   }
   return false;
@@ -102,7 +102,7 @@ function feedback(hapticType: HaHapticType, pattern: number | number[]): void {
 export const haptics = {
   /** A command was tapped, a wizard step advanced, a choice was made. */
   tap: () => feedback("light", 10),
-  /** A signal landed while recording -- distinct from `tap` so you can feel
+  /** A signal landed while recording: distinct from `tap` so you can feel
    * captures without looking at the screen while pointing a remote. */
   capture: () => feedback("medium", 25),
   /** Fired, paired, copied, saved. */

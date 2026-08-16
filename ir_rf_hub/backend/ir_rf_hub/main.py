@@ -35,12 +35,12 @@ from ir_rf_hub.supervisor_discovery import announce_pairing
 
 logger = logging.getLogger(__name__)
 
-# Anchored to wherever the ir_rf_hub package itself actually lives -- true
+# Anchored to wherever the ir_rf_hub package itself actually lives: true
 # both in local dev (backend/ir_rf_hub/) and once pip-installed inside a
 # container (e.g. site-packages/ir_rf_hub/, an entirely different layout).
 # db/migrations/ is a real subdirectory of the package so this always finds
 # it; alembic.ini is a sibling of the package in the source tree (not
-# shipped by `pip install .` at all), so it needs its own path -- see
+# shipped by `pip install .` at all), so it needs its own path: see
 # config.py's alembic_ini_path / the Dockerfile's explicit COPY of it.
 _PACKAGE_DIR = Path(__file__).resolve().parent
 _STATIC_DIR = _PACKAGE_DIR / "static"
@@ -52,7 +52,7 @@ _DISCOVERY_REANNOUNCE_INTERVAL_S = 60
 
 def _pairing_host() -> str:
     # The container's own hostname *is* the Supervisor-network DNS name
-    # other add-ons/integrations use to reach it -- Supervisor sets it
+    # other add-ons/integrations use to reach it: Supervisor sets it
     # when creating the container. Hardcoding `local-ir-rf-hub` only
     # works for the special "local" add-ons folder; installs from this
     # repo's custom repository (see repository.yaml) get a different,
@@ -91,14 +91,14 @@ async def _connect_known_devices() -> None:
     """Best-effort: connects to every saved device once at startup, so
     the device list's connection_state reflects reality right away
     instead of showing every device as "disconnected" until the user
-    happens to fire/record/test one -- device_manager only ever learns a
+    happens to fire/record/test one: device_manager only ever learns a
     device is reachable as a side effect of some other action, and a
     restart (routine: HA restarts, App updates like this one) wipes its
     in-memory session cache entirely. A genuinely offline device just
     stays disconnected, same as create_device's own best-effort connect.
 
-    Concurrent, each with its own DB session -- AsyncSession isn't safe
-    to share across concurrently-running coroutines -- so total delay is
+    Concurrent, each with its own DB session: AsyncSession isn't safe
+    to share across concurrently-running coroutines: so total delay is
     roughly the single slowest device's connect_timeout_s, not their sum.
     """
     async with session_scope() as session:
@@ -125,7 +125,7 @@ async def _announce_pairing_until_paired(token: str) -> None:
     Discovery API doesn't persist across a Supervisor/Core restart the
     way our own DB-backed pairing token does, and the companion
     integration might not even be installed yet the first few times this
-    runs. Stops for good once paired -- the manual code flow (still
+    runs. Stops for good once paired: the manual code flow (still
     served by /api/pairing-status) remains the fallback if this never
     gets picked up (e.g. the App isn't running under Supervisor at all).
     """
@@ -139,11 +139,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logging.basicConfig(level=settings.log_level.upper())
     logger.info("IR/RF Hub backend starting (version %s)", __version__)
     # Alembic's upgrade() drives env.py's own asyncio.run() internally, which
-    # can't nest inside the loop already running this lifespan -- give it a
+    # can't nest inside the loop already running this lifespan: give it a
     # thread with no running loop of its own.
     await asyncio.to_thread(_run_migrations)
     # Only touched while unpaired. After pairing the stored value is a hash
-    # (see api/rest/integration.py), which is useless to announce -- and the
+    # (see api/rest/integration.py), which is useless to announce: and the
     # announce loop would exit immediately anyway.
     announce_task = (
         None
@@ -151,11 +151,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         else asyncio.create_task(_announce_pairing_until_paired(await _get_or_create_pairing_token()))
     )
     connect_task = asyncio.create_task(_connect_known_devices())
-    # Checks (not unconditionally refetches -- see the module's own
+    # Checks (not unconditionally refetches: see the module's own
     # docstring) whether the bundled-database runtime cache needs
     # refreshing, then keeps checking on an interval for the rest of the
     # process's life. A slow/failed first check just means recording
-    # keeps using whatever's already cached/bundled -- never blocks
+    # keeps using whatever's already cached/bundled: never blocks
     # startup on it. Skippable (see disable_remote_database_updater) so
     # the test suite never triggers a real git clone against GitHub.
     remote_database_update_task = (
@@ -179,7 +179,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # so there's no need to cut it short. Cancelling mid-flight risked
     # interrupting an aiosqlite operation and leaving its background
     # worker thread trying to call back into an event loop that's since
-    # closed -- confirmed by a real "Event loop is closed" warning
+    # closed: confirmed by a real "Event loop is closed" warning
     # surfacing in unrelated tests during development.
     with contextlib.suppress(Exception):
         await connect_task
@@ -202,7 +202,7 @@ def create_app() -> FastAPI:
         this is the only place the pairing code is ever shown, and only
         for as long as nothing has paired yet.
 
-        The code here is the manual-pairing fallback -- the primary path
+        The code here is the manual-pairing fallback: the primary path
         is the companion integration finding the App on its own via
         _announce_pairing_until_paired()'s Supervisor Discovery push,
         which needs no code copied at all. See config_flow.py.

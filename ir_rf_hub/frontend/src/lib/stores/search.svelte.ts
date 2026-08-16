@@ -36,7 +36,7 @@ class SearchWizard {
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private testFireSuccessTimer: ReturnType<typeof setTimeout> | undefined;
   // Bumped on every new search; a response is only applied if it's still
-  // the most recent one requested -- without this, typing quickly can let
+  // the most recent one requested: without this, typing quickly can let
   // an earlier (slower) response land after a later (faster) one and show
   // stale results for what's currently in the box.
   private searchSeq = 0;
@@ -172,7 +172,7 @@ class SearchWizard {
 
   /** Back to searching (same type) rather than the whole wizard, so
    * finding several commands off the same search doesn't mean re-picking
-   * IR/RF every time -- mirrors recording.svelte.ts's recordAnother(). */
+   * IR/RF every time: mirrors recording.svelte.ts's recordAnother(). */
   searchAnother() {
     this.selected = null;
     this.name = "";

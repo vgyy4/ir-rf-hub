@@ -1,4 +1,4 @@
-"""Token-authed surface for the companion HA integration -- a separate HA
+"""Token-authed surface for the companion HA integration: a separate HA
 core process reaching the App over the internal Supervisor network, not a
 browser session Ingress has already authenticated. Bearer token is the
 same secret embedded in the pairing code (security.py).
@@ -59,7 +59,7 @@ async def require_integration_token(
 
     # Once something has paired, the pairing code is never shown again
     # (/api/pairing-status returns code=None), so the plaintext token has no
-    # remaining purpose -- only verification does, and a hash serves that.
+    # remaining purpose: only verification does, and a hash serves that.
     # Replacing it here means the database stops holding a working bearer
     # token for /api/integration/*. Also upgrades installs that paired
     # before this existed, on their next authenticated call.
@@ -91,7 +91,7 @@ async def integration_list_commands(session: AsyncSession = Depends(get_session)
 async def integration_fire_command(
     command_id: str, payload: FireRequest | None = None, session: AsyncSession = Depends(get_session)
 ) -> None:
-    # Delegates to the same fire logic the SPA uses -- see commands.py.
+    # Delegates to the same fire logic the SPA uses: see commands.py.
     # payload is optional: a button/switch press with no default device
     # set posts an empty body, relying on fire_command's own single-
     # candidate fallback; the select entity (device choice made
@@ -130,10 +130,10 @@ async def integration_candidate_devices(
 
 @router.post("/discovered-devices", status_code=204, dependencies=[Depends(require_integration_token)])
 async def integration_report_discovered_devices(devices: list[DiscoveredDeviceSchema]) -> None:
-    """The integration's own periodic zeroconf browse (reliable -- it
+    """The integration's own periodic zeroconf browse (reliable: it
     runs inside Home Assistant Core, not this container) reports what it
     finds here. GET /api/devices/discover merges this with the App's own
-    local mDNS attempt -- see esphome/integration_discovery.py.
+    local mDNS attempt: see esphome/integration_discovery.py.
     """
     logger.info("Received %d discovered device(s) from the integration", len(devices))
     set_reported_devices(devices)

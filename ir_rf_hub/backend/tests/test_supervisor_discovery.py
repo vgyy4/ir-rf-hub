@@ -1,4 +1,4 @@
-"""Unit tests for the Supervisor Discovery API announce call -- the
+"""Unit tests for the Supervisor Discovery API announce call: the
 zero-code pairing path. Real Supervisor is obviously not available in
 tests, so httpx.AsyncClient is swapped for a tiny recorder/failer instead
 of hitting the network.

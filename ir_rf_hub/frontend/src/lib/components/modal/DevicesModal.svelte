@@ -30,7 +30,7 @@
   import InfoIcon from "@lucide/svelte/icons/info";
 
   // Matches DevicePicker.svelte's convention for "reachable enough to
-  // treat as online" -- anything mid-transmit/receive still counts.
+  // treat as online": anything mid-transmit/receive still counts.
   const ONLINE_STATES = new Set(["idle", "rx_active", "tx_active", "rx_settling", "tx_settling"]);
 
   interface Props {
@@ -68,7 +68,7 @@
   let editError = $state<string | null>(null);
 
   // Set right after a device is successfully added, and shown once as a
-  // tip -- not gating the Add itself (that was an extra click on every
+  // tip: not gating the Add itself (that was an extra click on every
   // single add, forever) and not repeated every time the menu reopens
   // (that kept nagging about devices you'd already sorted out). Cleared
   // on dismiss, on starting another add, or on closing the modal.
@@ -85,7 +85,7 @@
   // The host's real gateway and subnet, read from Supervisor (see the
   // backend's supervisor_network.py). Fetched once when the menu opens.
   // `guessed` means Supervisor wasn't reachable and we're back to the old
-  // convention -- the copy below says so rather than stating it as fact.
+  // convention: the copy below says so rather than stating it as fact.
   let hostNetwork = $state<HostNetwork | null>(null);
 
   // Only computable when the host is a literal IPv4 address (a .local
@@ -120,7 +120,7 @@
   $effect(() => {
     if (open) {
       void devicesStore.refresh();
-      // Cheap, and only meaningful once a device is actually added -- but
+      // Cheap, and only meaningful once a device is actually added: but
       // fetching it here means the tip renders complete rather than
       // filling in its gateway/subnet a beat later.
       if (!hostNetwork) void getHostNetwork().then((n) => (hostNetwork = n)).catch(() => {});
@@ -131,8 +131,8 @@
       void handleDiscover();
     } else {
       // This component stays mounted across close/open (Modal just
-      // toggles visibility), so without this the add-device form -- and
-      // a stale discovered-devices list -- would still be showing the
+      // toggles visibility), so without this the add-device form: and
+      // a stale discovered-devices list: would still be showing the
       // next time the menu opens.
       resetForm();
       discovered = [];
@@ -249,7 +249,7 @@
     editError = null;
     try {
       // encryption_key / password are only sent when the user actually typed
-      // something -- an empty field means "leave the stored secret alone",
+      // something: an empty field means "leave the stored secret alone",
       // not "clear it" (the backend treats any key present in the request
       // body, even blank, as an explicit change).
       const payload: UpdateDeviceRequest = {
@@ -277,7 +277,7 @@
   let testingDeviceId = $state<string | null>(null);
   let testError = $state<{ id: string; message: string } | null>(null);
 
-  // Forces a fresh reconnect + entity re-scan on demand -- what to use
+  // Forces a fresh reconnect + entity re-scan on demand: what to use
   // right after e.g. reflashing an ESP with new IR/RF hardware, rather
   // than waiting for the App to happen to notice on its own (it only
   // reconnects at startup or when something else needs the device).
@@ -316,7 +316,7 @@
     <InfoIcon class="mt-0.5 size-3.5 shrink-0" />
     <p>
       Each device needs the <code>ir_rf_proxy</code> component in its ESPHome YAML, on top of a
-      <code>remote_receiver</code>/<code>remote_transmitter</code> config -- it won't show up with any
+      <code>remote_receiver</code>/<code>remote_transmitter</code> config: it won't show up with any
       usable entities otherwise. See the
       <a
         class="text-foreground underline underline-offset-2"
@@ -352,9 +352,9 @@
         <p>
           If you haven't already, it's worth giving it a static IP so the App doesn't lose it after a
           reboot or router restart. Add this to the <code>wifi:</code> section of its ESPHome YAML{#if hostNetwork && !hostNetwork.guessed}
-            -- the gateway and subnet are Home Assistant's own, so they're right as long as the ESP
+           : the gateway and subnet are Home Assistant's own, so they're right as long as the ESP
             is on the same network:{:else}
-            -- double-check the gateway and subnet against your own router, these are the most common
+           : double-check the gateway and subnet against your own router, these are the most common
             home-network defaults rather than your actual values:{/if}
         </p>
         <div class="border-border bg-background overflow-x-auto rounded-lg border p-3">
@@ -372,8 +372,8 @@
       {:else}
         <p>
           If you haven't already, it's worth giving {justAdded.host} an actual static IP for the most
-          reliable setup -- either a DHCP reservation on your router, or a <code>manual_ip:</code>
-          block under <code>wifi:</code> in its ESPHome YAML -- since hostname (mDNS) resolution isn't
+          reliable setup: either a DHCP reservation on your router, or a <code>manual_ip:</code>
+          block under <code>wifi:</code> in its ESPHome YAML: since hostname (mDNS) resolution isn't
           always reliable for this App.
         </p>
       {/if}
@@ -449,7 +449,7 @@
       </li>
     {:else}
       <p class="text-muted-foreground text-sm italic">
-        No devices added yet -- discover one above, or add one manually below. Remember it'll need
+        No devices added yet: discover one above, or add one manually below. Remember it'll need
         <code>ir_rf_proxy</code> in its YAML first (see the note above).
       </p>
     {/each}

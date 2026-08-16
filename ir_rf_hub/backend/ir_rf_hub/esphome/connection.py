@@ -35,14 +35,14 @@ class DeviceUnreachableError(Exception):
     pass
 
 
-# Subclasses of DeviceUnreachableError -- every existing `except
+# Subclasses of DeviceUnreachableError: every existing `except
 # DeviceUnreachableError` catch (device_manager.py, device_session.py,
 # commands.py, recording.py) keeps working unchanged for these too. Only
 # callers that want to give the user a specific, actionable message (see
 # api/rest/devices.py's create_device/update_device) need to catch these
 # more specific subtypes ahead of the base one.
 class DeviceRequiresEncryptionError(DeviceUnreachableError):
-    """The device rejected a plaintext connection attempt -- it's
+    """The device rejected a plaintext connection attempt: it's
     compiled with `api: encryption:` and needs the noise_psk key.
     """
 
@@ -53,7 +53,7 @@ class DeviceEncryptionKeyInvalidError(DeviceUnreachableError):
 
 class DeviceUnexpectedEncryptionError(DeviceUnreachableError):
     """A noise_psk key was provided but this device isn't using
-    encryption at all -- it answered in plaintext.
+    encryption at all: it answered in plaintext.
     """
 
 
@@ -83,11 +83,11 @@ class EspHomeConnection:
         # Order matters: these are all subclasses of api.APIConnectionError,
         # so the specific ones must be checked before the generic catch-all
         # below or they'd never match. Verified against aioesphomeapi's own
-        # exception hierarchy (core.py) -- RequiresEncryptionAPIError fires
+        # exception hierarchy (core.py): RequiresEncryptionAPIError fires
         # when we connected in plaintext but the device demands encryption;
         # InvalidEncryptionKeyAPIError/EncryptionHelloAPIError fire when a
         # noise_psk was sent but rejected; EncryptionPlaintextAPIError is
-        # the reverse -- we sent a key but the device answered in plaintext.
+        # the reverse: we sent a key but the device answered in plaintext.
         try:
             await asyncio.wait_for(self._client.connect(login=False), timeout=self._connect_timeout_s)
         except api.RequiresEncryptionAPIError as exc:
@@ -108,7 +108,7 @@ class EspHomeConnection:
             self._receive_unsub = None
         try:
             await self._client.disconnect()
-        except Exception:  # noqa: BLE001 -- best-effort on the way down
+        except Exception:  # noqa: BLE001: best-effort on the way down
             logger.debug("Error during disconnect, ignoring", exc_info=True)
 
     def _on_receive_event(self, event: api.InfraredRFReceiveEvent) -> None:
@@ -136,7 +136,7 @@ class EspHomeConnection:
 
     async def list_entities(self) -> list[DiscoveredEntity]:
         """Discover ir_rf_proxy entities and split them into one row per
-        capability bit -- InfraredCapability/RadioFrequencyCapability are
+        capability bit: InfraredCapability/RadioFrequencyCapability are
         bitmasks, so a future entity advertising both TRANSMITTER and
         RECEIVER on one key correctly yields two DeviceEntity rows sharing
         that key, rather than being silently dropped to one role.
@@ -162,7 +162,7 @@ class EspHomeConnection:
                 # entry per band) these are equal, so frequency_min is a
                 # reasonable default carrier for commands recorded against
                 # this entity. A genuinely wideband receiver isn't fully
-                # modeled here -- see plan's open items.
+                # modeled here: see plan's open items.
                 frequency_hz = entity.frequency_min or None
             else:
                 continue

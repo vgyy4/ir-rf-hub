@@ -1,9 +1,9 @@
-"""EspHomeConnection.connect()'s exception mapping -- verified against
+"""EspHomeConnection.connect()'s exception mapping: verified against
 aioesphomeapi's real exception hierarchy (see connection.py's comment on
 why the specific except clauses must precede the generic one). The fake
 ESPHome test server used everywhere else in this suite is plaintext-only
 and doesn't implement a Noise handshake at all, so these can't be
-exercised through a real connection -- mocking aioesphomeapi.APIClient's
+exercised through a real connection: mocking aioesphomeapi.APIClient's
 connect() directly is the only deterministic way to trigger each one.
 """
 
@@ -41,7 +41,7 @@ async def test_invalid_encryption_key_error_maps_to_specific_exception(monkeypat
 
 
 async def test_encryption_hello_error_also_maps_to_key_invalid(monkeypatch: pytest.MonkeyPatch):
-    # A less specific encryption-handshake failure -- bucketed with "wrong
+    # A less specific encryption-handshake failure: bucketed with "wrong
     # key" since that's overwhelmingly the real-world cause.
     with pytest.raises(DeviceEncryptionKeyInvalidError):
         await _connect_with_mocked_error(monkeypatch, api.EncryptionHelloAPIError())
@@ -49,7 +49,7 @@ async def test_encryption_hello_error_also_maps_to_key_invalid(monkeypatch: pyte
 
 async def test_encryption_plaintext_error_maps_to_unexpected_encryption(monkeypatch: pytest.MonkeyPatch):
     # The reverse case: we sent a key, but the device answered in
-    # plaintext -- it isn't actually using encryption.
+    # plaintext: it isn't actually using encryption.
     with pytest.raises(DeviceUnexpectedEncryptionError):
         await _connect_with_mocked_error(monkeypatch, api.EncryptionPlaintextAPIError())
 

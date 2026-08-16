@@ -70,7 +70,7 @@ async def test_reconnect_replaces_stale_entities(fake_device: FakeEspHomeServer)
         await manager.connect(session, device)
 
     # Reconfigure the fake device to advertise a different entity set and
-    # force a fresh connection -- persisted rows should reflect only the
+    # force a fresh connection: persisted rows should reflect only the
     # new set, not accumulate stale ones from the first connect.
     fake_device.infrared_entities = []
     await manager.disconnect(device_id)

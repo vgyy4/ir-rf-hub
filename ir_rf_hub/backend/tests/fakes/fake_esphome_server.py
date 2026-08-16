@@ -1,6 +1,6 @@
 """A minimal fake ESPHome native-API server, speaking the real plaintext
 wire protocol (varint-framed protobuf, no Noise encryption) using the
-actual generated `aioesphomeapi.api_pb2` message classes -- so the real
+actual generated `aioesphomeapi.api_pb2` message classes: so the real
 `aioesphomeapi.APIClient` can connect to it unmodified. This is what
 unblocks every later phase's automated tests without needing physical
 ESPHome hardware.
@@ -22,16 +22,16 @@ inspection commands), not guessed:
   ListEntitiesDoneResponse.
 - IR and RF raw receive both arrive as the *same* message type,
   InfraredRFReceiveEvent(device_id, key, timings), pushed unsolicited by
-  the device at any time -- there is no explicit subscribe request on the
+  the device at any time: there is no explicit subscribe request on the
   wire, `subscribe_infrared_rf_receive()` just registers a local callback
   for that message type. This confirms reception is always-on at the
   ESPHome/API level, matching the "no log scraping needed" design.
 - Both `infrared_rf_transmit_raw_timings()` and
   `radio_frequency_transmit_raw_timings()` send the same fire-and-forget
-  InfraredRFTransmitRawTimingsRequest message (no ack) -- `modulation` is
+  InfraredRFTransmitRawTimingsRequest message (no ack): `modulation` is
   simply unset/ignored for the IR case.
 - Wire message-type IDs (from aioesphomeapi.core.MESSAGE_TYPE_TO_PROTO, which
-  is keyed by the *actual* 1-indexed wire ID -- confirmed against a real raw
+  is keyed by the *actual* 1-indexed wire ID: confirmed against a real raw
   packet capture, since a sibling table in the same module,
   MESSAGE_NUMBER_TO_PROTO, is a 0-indexed array offset by one from the wire
   ID and is easy to misread as the wire table by mistake):
@@ -155,7 +155,7 @@ class FakeEspHomeServer:
 
     async def emit_receive_event(self, *, key: int, timings: list[int], device_id: int = 0) -> None:
         """Push an unsolicited InfraredRFReceiveEvent to every connected
-        client -- simulates a real remote being pressed in front of the
+        client: simulates a real remote being pressed in front of the
         device's receiver, for scripting recording-flow tests.
         """
         event = pb.InfraredRFReceiveEvent(device_id=device_id, key=key, timings=timings)

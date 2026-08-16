@@ -17,7 +17,7 @@ async def _isolated_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     Deliberately does NOT create the schema here: tests that exercise the
     FastAPI app (e.g. test_health.py) get their schema from the app's own
     lifespan running real Alembic migrations against settings.database_url
-    -- that's the single source of truth for what the schema looks like,
+   : that's the single source of truth for what the schema looks like,
     the same path production uses. Tests that need direct DB access without
     going through the app should create their own fixture that creates the
     schema explicitly (see Phase 1's device-session tests).

@@ -2,7 +2,7 @@
  *
  * Shared by the recording wizard's "write raw" step and the edit wizard's
  * raw editor, which must accept exactly the same format: comma-separated
- * microseconds, positive = mark (on), negative = space (off) -- the format
+ * microseconds, positive = mark (on), negative = space (off): the format
  * the ESP records in and the backend transmits from.
  */
 
@@ -23,7 +23,7 @@ export function parseTimingsText(text: string): number[] | null {
 }
 
 /** Same format, but empty text is valid and means "no repeat signal".
- * Returns `undefined` -- distinct from `null` -- when the text is non-empty
+ * Returns `undefined`: distinct from `null`: when the text is non-empty
  * but malformed, so callers can tell "cleared" from "invalid". */
 export function parseOptionalTimingsText(text: string): number[] | null | undefined {
   if (text.trim().length === 0) return null;

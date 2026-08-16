@@ -41,7 +41,7 @@ async def test_successful_integration_auth_flips_paired_permanently(client: http
     status = (await client.get("/api/pairing-status")).json()
     token = decode_pairing_code(status["code"])["token"]
 
-    # not paired yet -- no integration call has happened
+    # not paired yet: no integration call has happened
     assert (await client.get("/api/pairing-status")).json()["paired"] is False
 
     health = await client.get("/api/integration/health", headers={"Authorization": f"Bearer {token}"})

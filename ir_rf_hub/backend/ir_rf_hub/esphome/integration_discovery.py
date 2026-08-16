@@ -2,16 +2,16 @@
 reported via POST /api/integration/discovered-devices.
 
 discovery.py's own mDNS browse runs from inside the App's container,
-which sits on Supervisor's isolated internal network -- whether that
+which sits on Supervisor's isolated internal network: whether that
 actually sees real LAN multicast traffic depends on Supervisor's
 Multicast plugin reaching it, which isn't guaranteed for every install.
 Home Assistant Core (where the companion integration runs) has reliable
 zeroconf discovery regardless, so the integration browses independently
 and reports what it finds here; GET /api/devices/discover merges both
 sources. See ARCHITECTURE.md's Pairing section for why host_network
-isn't the fix -- it broke the App<->integration handshake instead.
+isn't the fix: it broke the App<->integration handshake instead.
 
-Not persisted -- it's just "candidates the integration has seen
+Not persisted: it's just "candidates the integration has seen
 recently", refreshed on its own schedule (see the integration's
 discovery.py periodic task) and expired here so a since-removed
 integration doesn't leave phantom devices "discoverable" forever.

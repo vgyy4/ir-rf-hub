@@ -1,8 +1,8 @@
 """The Home Assistant host's real IPv4 gateway and subnet, from Supervisor.
 
 Used by the static-IP tip shown after adding a device. That tip used to
-assume the two values every home network *usually* has -- a gateway at
-`.1` and a /24 -- which is a guess, and a wrong one on any network that
+assume the two values every home network *usually* has: a gateway at
+`.1` and a /24: which is a guess, and a wrong one on any network that
 isn't laid out that way. Supervisor knows the actual answer for the
 interface Home Assistant itself is on, and `hassio_api: true` in
 config.yaml already grants us the token to ask.
@@ -76,7 +76,7 @@ async def get_host_network() -> HostNetwork | None:
     callers fall back to the convention-based guess."""
     supervisor_token = os.environ.get("SUPERVISOR_TOKEN")
     if not supervisor_token:
-        logger.debug("SUPERVISOR_TOKEN not set -- cannot read host network config")
+        logger.debug("SUPERVISOR_TOKEN not set: cannot read host network config")
         return None
 
     try:

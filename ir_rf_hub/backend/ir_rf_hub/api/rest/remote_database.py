@@ -1,5 +1,5 @@
 """Search the bundled remote database for a known device's command by
-name -- e.g. "samsung tv power" -- as an alternative to recording live or
+name: e.g. "samsung tv power": as an alternative to recording live or
 typing raw timings by hand. See esphome/remote_database.py for the
 matching itself; this just adapts it to REST and encodes each result into
 a ready-to-fire raw timing list via protocol_decode.encode_nec (IR) or
@@ -17,7 +17,7 @@ from ir_rf_hub.schemas import RemoteSearchResultSchema
 
 router = APIRouter(prefix="/api/remote-database", tags=["remote-database"])
 
-# The de-facto standard IR carrier -- matches DEFAULT_IR_CARRIER_HZ on the
+# The de-facto standard IR carrier: matches DEFAULT_IR_CARRIER_HZ on the
 # frontend, used the same way (there's no receiving entity here to read a
 # real carrier from, since these codes never went through a live capture).
 _DEFAULT_IR_CARRIER_HZ = 38000
@@ -30,7 +30,7 @@ def _encode_result(protocol: str, address_bytes: str, command_bytes: str) -> lis
         return encode_princeton(address_bytes, bit_count=int(command_bytes))
     if protocol == "CAME":
         return encode_came(address_bytes, bit_count=int(command_bytes))
-    raise HTTPException(500, f"No encoder for protocol {protocol!r}")  # pragma: no cover -- indexed protocols only
+    raise HTTPException(500, f"No encoder for protocol {protocol!r}")  # pragma: no cover: indexed protocols only
 
 
 @router.get("/search", response_model=list[RemoteSearchResultSchema])

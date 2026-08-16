@@ -20,7 +20,7 @@ class CommandsStore {
   }
 
   /** Subscribe to the general event bus so every open tab stays in sync as
-   * commands are created/renamed/deleted -- REST resync as the correctness
+   * commands are created/renamed/deleted: REST resync as the correctness
    * backstop, WS as the fast path (same pattern the companion integration
    * will use in Phase 5).
    */
@@ -34,7 +34,7 @@ class CommandsStore {
       },
       // The socket itself now reconnects on its own (see ws.ts), but a
       // reconnect means some events could have been missed while it was
-      // down -- a full resync is the correctness backstop for that gap.
+      // down: a full resync is the correctness backstop for that gap.
       () => void this.refresh(),
     );
   }

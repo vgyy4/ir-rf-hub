@@ -6,7 +6,7 @@ they never expect an incoming message. A route that only does
 while it's idle between bus events: nothing raises until the *next*
 publish, which may never come, leaking the task (and its event_bus
 subscription) for the lifetime of the process. Racing a receive() against
-the queue get() is the standard fix -- receive() resolves the moment the
+the queue get() is the standard fix: receive() resolves the moment the
 client disconnects, even with no bus traffic.
 """
 
@@ -19,7 +19,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 async def run_until_client_disconnects(websocket: WebSocket, on_event) -> None:
     """Runs `on_event()` in a loop, but returns as soon as the client
-    disconnects -- even if `on_event` is currently blocked waiting for
+    disconnects: even if `on_event` is currently blocked waiting for
     something else (e.g. queue.get()).
     """
     disconnect_task = asyncio.ensure_future(websocket.receive())

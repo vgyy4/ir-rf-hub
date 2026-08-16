@@ -1,16 +1,16 @@
 """End-to-end recording flow: create a device, start a recording session,
 watch captures arrive on the scoped WS stream, clear & retry, stop, and
 confirm the half-duplex lock actually blocks a concurrent recording attempt
-against the same device -- the same guarantee proven at the FSM level in
+against the same device: the same guarantee proven at the FSM level in
 test_device_session_fsm.py, now proven through the real HTTP/WS surface the
 frontend will actually use.
 
 Deliberately uses httpx.AsyncClient + httpx_ws (not Starlette's TestClient)
-so the whole test -- REST calls, the WS connection, and the fake ESPHome
-server's emit_receive_event() -- all run on the *same* asyncio event loop.
+so the whole test: REST calls, the WS connection, and the fake ESPHome
+server's emit_receive_event(): all run on the *same* asyncio event loop.
 TestClient runs the ASGI app on its own background thread with its own
 loop, which would make the shared in-process event_bus's asyncio.Queue
-objects get touched from two different loops -- asyncio.Queue isn't
+objects get touched from two different loops: asyncio.Queue isn't
 thread-safe across loops, so that combination is a latent race, not just a
 style preference.
 
@@ -148,7 +148,7 @@ async def test_stop_recording_detects_nec_leader_and_repeat_shapes(fake_device: 
 
 
 async def test_stop_recording_offers_shape_candidates_when_ambiguous(fake_device: FakeEspHomeServer):
-    # Neither shape looks like a recognized protocol -- e.g. a real full
+    # Neither shape looks like a recognized protocol: e.g. a real full
     # frame plus a garbled receiver-noise echo (the "Netflix" bug) --
     # so both must be surfaced for the user to choose from, not silently
     # collapsed or discarded.

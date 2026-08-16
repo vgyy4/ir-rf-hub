@@ -135,7 +135,7 @@
       {:else if wizard.query.trim().length >= 2 && wizard.results.length === 0}
         <p class="text-muted-foreground py-4 text-center text-sm">
           No matches in the bundled database. {wizard.type === "rf"
-            ? "RF coverage is much smaller than IR's -- most captured RF codes out there are either raw or use a protocol not covered yet."
+            ? "RF coverage is much smaller than IR's: most captured RF codes out there are either raw or use a protocol not covered yet."
             : "Try fewer or different words."} Record it live instead, or write raw timings.
         </p>
       {:else}

@@ -1,5 +1,5 @@
 """Recording session control. Session start/stop/clear/discard are
-discrete, idempotency-sensitive actions, so they're REST -- the live
+discrete, idempotency-sensitive actions, so they're REST: the live
 capture feed itself is a push stream, handled separately by
 api/ws/recording_ws.py. See device_session.py for why "start recording"
 doesn't send any command to the ESPHome device at all: reception is
@@ -35,14 +35,14 @@ from ir_rf_hub.schemas import (
 router = APIRouter(prefix="/api/recording", tags=["recording"])
 
 # session_id -> device_id. Recording sessions are short-lived and
-# interactive (one open modal), so an in-memory registry is enough -- it
+# interactive (one open modal), so an in-memory registry is enough: it
 # doesn't need to survive a backend restart, unlike Command storage.
 _session_devices: dict[str, str] = {}
 
 
 def _identify(timings: list[int]) -> tuple[DecodedSignalSchema | None, list[RemoteMatchSchema]]:
     """Best-effort decode + bundled-database lookup for a resolved
-    capture, trying IR decoders then RF decoders. Never raises -- a shape
+    capture, trying IR decoders then RF decoders. Never raises: a shape
     neither protocol_decode.py nor rf_protocol_decode.py recognizes just
     means both come back empty, which is the normal case (most captures),
     not an error."""

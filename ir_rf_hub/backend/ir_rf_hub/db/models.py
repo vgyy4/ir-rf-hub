@@ -1,5 +1,5 @@
 """SQLAlchemy models. This is the canonical schema both the REST API and the
-companion HA integration's data contract derive from -- see
+companion HA integration's data contract derive from: see
 esphome/device_session.py for how EspDevice/DeviceEntity map onto live
 connections, and api/rest/commands.py for how Command maps onto the wire
 format sent to both the SPA and the integration.
@@ -58,14 +58,14 @@ class EspDevice(Base):
     host: Mapped[str] = mapped_column(String(255))
     port: Mapped[int] = mapped_column(Integer, default=6053)
 
-    # Fernet-encrypted blobs (nullable -- a device may use neither, one, or
+    # Fernet-encrypted blobs (nullable: a device may use neither, one, or
     # the other depending on its ESPHome API configuration).
     encryption_key_enc: Mapped[bytes | None] = mapped_column(nullable=True)
     password_enc: Mapped[bytes | None] = mapped_column(nullable=True)
 
     mdns_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # Half-duplex settle timers, per-device tunable -- see device_session.py.
+    # Half-duplex settle timers, per-device tunable: see device_session.py.
     tx_settle_ms: Mapped[int] = mapped_column(Integer, default=150)
     rx_stop_settle_ms: Mapped[int] = mapped_column(Integer, default=150)
     connect_timeout_s: Mapped[int] = mapped_column(Integer, default=10)
@@ -85,7 +85,7 @@ class DeviceEntity(Base):
     """One row per `ir_rf_proxy` platform instance discovered on a device via
     ListEntities. This is what every "which devices are valid here" filter
     in the UI queries against (recording device picker = rx + domain match;
-    fire/default-ESP pickers = tx + domain match) -- no ad-hoc guessing.
+    fire/default-ESP pickers = tx + domain match): no ad-hoc guessing.
     """
 
     __tablename__ = "device_entities"
@@ -106,7 +106,7 @@ class DeviceEntity(Base):
 
 class Command(Base):
     """A saved, named IR/RF command. Deliberately raw end-to-end: recorded
-    raw, stored raw, transmitted raw -- no protocol-decoding subsystem.
+    raw, stored raw, transmitted raw: no protocol-decoding subsystem.
     """
 
     __tablename__ = "commands"
@@ -121,10 +121,10 @@ class Command(Base):
     # Set only for a two-shape command (see esphome/signal_shapes.py):
     # raw_timings is the leader, fired once on transmit; repeat_timings is
     # fired (repeat_count - 1) more times after it. NULL means a plain
-    # single-shape command -- raw_timings alone, fired repeat_count times,
+    # single-shape command: raw_timings alone, fired repeat_count times,
     # the only behavior that existed before this column did.
     repeat_timings: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
-    # Informational only (e.g. "nec_leader_repeat") -- set when
+    # Informational only (e.g. "nec_leader_repeat"): set when
     # repeat_timings was auto-detected rather than manually chosen by the
     # user from recording's shape_candidates. Never read by the fire path.
     repeat_protocol: Mapped[str | None] = mapped_column(String(64), nullable=True)

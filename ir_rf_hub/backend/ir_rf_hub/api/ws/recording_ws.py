@@ -1,12 +1,12 @@
 """Scoped live capture stream: /api/ws/recording/{session_id}. Separate from
 the general /api/ws fan-out because this is high-frequency and per-session,
 not something every tab needs. Each ir_rf_proxy raw receive event arrives
-as one complete mark/space timings array (not a byte-by-byte stream -- see
+as one complete mark/space timings array (not a byte-by-byte stream: see
 device_session.py), so each message here is one full capture, not one
 sample.
 
 Session end (stop/clear/discard) is driven by the initiating tab's own
-REST calls, whose responses already carry the result -- this socket only
+REST calls, whose responses already carry the result: this socket only
 needs to push new captures as they arrive while the modal is open.
 """
 

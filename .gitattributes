@@ -1,4 +1,4 @@
-# These run inside a Linux container with a shebang line -- a CRLF line
+# These run inside a Linux container with a shebang line: a CRLF line
 # ending breaks the interpreter lookup ("bad interpreter" errors). Force
 # LF regardless of a contributor's local core.autocrlf setting.
 *.sh text eol=lf

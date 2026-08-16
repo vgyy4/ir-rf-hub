@@ -15,11 +15,11 @@ fi
 
 # The runtime remote-database cache (esphome/remote_database_updater.py)
 # is a re-fetchable copy of public upstream data, not something a backup
-# needs to preserve -- bloating every backup with several hundred KB of
+# needs to preserve: bloating every backup with several hundred KB of
 # data that would just get re-downloaded on next startup anyway (see
 # remote_database_updater.py's own on-restart/on-version-change refresh
 # check) isn't worth it. Moved out of /data for the brief window Supervisor
-# is actually snapshotting it, then moved back by backup_post.sh -- a
+# is actually snapshotting it, then moved back by backup_post.sh: a
 # restore that catches it mid-move just means the App re-fetches it once
 # on next start, same as any install that's simply never fetched yet.
 CACHE_DIR="/data/remote_db_cache"

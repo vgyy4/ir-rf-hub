@@ -1,5 +1,5 @@
 """Registry of live DeviceSession actors, keyed by EspDevice.id. This is the
-single place that turns a DB row into a connection -- REST handlers and the
+single place that turns a DB row into a connection: REST handlers and the
 future recording/transmit code all go through here rather than touching
 EspHomeConnection/DeviceSession directly, so there is exactly one
 DeviceSession per device no matter how many requests come in concurrently.

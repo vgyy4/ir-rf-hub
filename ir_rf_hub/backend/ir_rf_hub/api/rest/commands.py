@@ -25,13 +25,13 @@ class CommandCreateRequest(BaseModel):
     carrier_frequency_hz: int = 0
     repeat_count: int = 1
     default_device_id: str | None = None
-    # Informational only -- the device a command was recorded *from* (a
+    # Informational only: the device a command was recorded *from* (a
     # receiver) is not necessarily valid as a transmit target, so this is
     # never used to set default_device_id automatically. See devices.py's
     # candidate-devices filtering for why: default_device_id must point at
     # a device with a tx-role entity of the matching domain.
     recorded_from_device_id: str | None = None
-    # Set only for a two-shape command -- see fire_command()'s firing
+    # Set only for a two-shape command: see fire_command()'s firing
     # semantics and esphome/signal_shapes.py.
     repeat_timings: list[int] | None = None
     repeat_protocol: str | None = None
@@ -170,7 +170,7 @@ async def _fire_signal(
     repeat_timings: list[int] | None,
 ) -> None:
     """Shared by fire_command (a saved Command) and test_fire (an
-    in-progress, unsaved payload from the raw editor) -- same two-shape
+    in-progress, unsaved payload from the raw editor): same two-shape
     firing semantics either way, see fire_command's original inline
     comment for why the leader/repeat split isn't `timings x repeat_count`
     twice over.
@@ -221,7 +221,7 @@ async def fire_command(command_id: str, payload: FireRequest, session: AsyncSess
     domain = _domain_for_type(command.type.value)
     device_id = payload.device_id or command.default_device_id
     if device_id is None:
-        # No explicit target and no default -- the App's own UI can ask
+        # No explicit target and no default: the App's own UI can ask
         # "which ESP?" interactively (see /candidate-devices), but a
         # button/switch press or automation call from the companion
         # integration has no way to prompt anyone. If there's exactly
@@ -261,7 +261,7 @@ async def fire_command(command_id: str, payload: FireRequest, session: AsyncSess
 
 class TestFireRequest(BaseModel):
     """Fires an in-progress payload straight from the raw editor, without
-    saving it as (or already existing as) a Command first -- lets you
+    saving it as (or already existing as) a Command first: lets you
     verify a hand-edited signal actually does something before committing
     to it. Intentionally mirrors CommandCreateRequest's raw-signal fields
     rather than reusing it: default_device_id/recorded_from_device_id have

@@ -32,7 +32,7 @@ describe("parseOptionalTimingsText", () => {
   });
 
   it("returns undefined (not null) for malformed non-empty text", () => {
-    // Distinct from "cleared" -- callers need to tell "the user typed
+    // Distinct from "cleared": callers need to tell "the user typed
     // garbage" apart from "the user cleared the field".
     expect(parseOptionalTimingsText("not numbers")).toBeUndefined();
   });

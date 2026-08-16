@@ -276,8 +276,8 @@ async def test_fire_two_shape_command_sends_leader_once_then_repeat_shape_n_minu
     resp = await client.post(f"/api/commands/{command['id']}/fire", json={})
     assert resp.status_code == 204
 
-    # Exactly two firmware calls -- leader once, repeat shape (4 - 1)
-    # times -- never `raw_timings x repeat_count` AND `repeat_timings x
+    # Exactly two firmware calls: leader once, repeat shape (4 - 1)
+    # times: never `raw_timings x repeat_count` AND `repeat_timings x
     # repeat_count`, which would double the total activations.
     assert len(fake_device.transmitted) == 2
     assert fake_device.transmitted[0].timings == [9000, -4500, 560, -560]
@@ -333,7 +333,7 @@ async def test_test_fire_reaches_fake_server_without_saving_a_command(
     assert len(fake_device.transmitted) == 1
     assert fake_device.transmitted[0].timings == [9000, -4500, 560, -560]
     assert fake_device.transmitted[0].carrier_frequency == 38000
-    # Nothing was persisted -- this is purely a firmware call.
+    # Nothing was persisted: this is purely a firmware call.
     assert (await client.get("/api/commands")).json() == []
 
 

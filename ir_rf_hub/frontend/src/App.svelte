@@ -74,7 +74,7 @@
 
 <!-- Fixed full-viewport background: a soft accent glow over the theme's own
      background tone, well above HA's/the browser's flat gray. Deliberately
-     restrained now that the chrome is neutral -- it should register as warmth
+     restrained now that the chrome is neutral: it should register as warmth
      in the corners, not as a coloured page. Catppuccin keeps a stronger wash,
      since that palette is opted into for exactly that character. Sits behind
      everything at -z-10; content scrolls independently above it. -->

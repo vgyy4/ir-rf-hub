@@ -10,18 +10,18 @@ get right:
 - A recording session holds `_device_lock` for its *entire* duration (from
   start_recording to stop/discard_recording finishing its settle sleep).
   Since asyncio.Lock is FIFO-fair, any transmit() call that arrives while a
-  recording is active simply blocks on `acquire()` in queue order -- this
+  recording is active simply blocks on `acquire()` in queue order: this
   *is* the "transmits queue behind an active recording, bounded wait"
   requirement, for free, without a hand-rolled queue.
 - A second start_recording() call while one is already active is rejected
   immediately via the `_recording is not None` check, performed *before*
-  attempting to acquire the lock -- so it never waits, matching "reject
+  attempting to acquire the lock: so it never waits, matching "reject
   fast, don't queue a second interactive recording attempt".
 - transmit() acquires the lock with a bounded timeout and raises
-  DeviceBusyTimeoutError if it can't get in -- covers both "blocked behind
+  DeviceBusyTimeoutError if it can't get in: covers both "blocked behind
   a long recording" and "blocked behind another transmit".
 - Settle timers (tx_settle_ms / rx_stop_settle_ms) run *before* the lock is
-  released, not after -- so the next queued operation only starts once the
+  released, not after: so the next queued operation only starts once the
   settle window has actually elapsed, which is the mechanism that protects
   half-duplex RF front-ends.
 """
@@ -125,7 +125,7 @@ class DeviceSession:
             Event(type="device.session_state_changed", data={"device_id": self.config.device_id, "state": state.value})
         )
 
-    # -- connection lifecycle -------------------------------------------------
+    #: connection lifecycle -------------------------------------------------
 
     async def connect(self) -> list[DiscoveredEntity]:
         self._set_state(DeviceSessionState.connecting)
@@ -165,7 +165,7 @@ class DeviceSession:
                 return entity
         return None
 
-    # -- recording --------------------------------------------------------------
+    #: recording --------------------------------------------------------------
 
     async def start_recording(self, *, domain: SignalDomain, rx_key: int) -> RecordingSession:
         if self._recording is not None:
@@ -225,7 +225,7 @@ class DeviceSession:
             self._set_state(DeviceSessionState.idle)
         return session
 
-    # -- transmit -----------------------------------------------------------
+    #: transmit -----------------------------------------------------------
 
     async def transmit(
         self,

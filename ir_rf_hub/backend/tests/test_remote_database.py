@@ -6,7 +6,7 @@ from ir_rf_hub.esphome.remote_database import lookup_bundled, search_bundled
 
 def test_lookup_bundled_finds_real_awa_tv_entry():
     # Same real Flipper-IRDB sample used in test_protocol_decode.py
-    # (TVs/AWA/AWA_MSDV3268O5D0.ir, "Power") -- proves the bundled index
+    # (TVs/AWA/AWA_MSDV3268O5D0.ir, "Power"): proves the bundled index
     # built by scripts/build_flipper_index.py is actually reachable via a
     # decoded signal's address_bytes/command_bytes, not just present in
     # the raw file.
@@ -19,7 +19,7 @@ def test_lookup_bundled_finds_real_awa_tv_entry():
 
 
 def test_lookup_bundled_empty_for_protocols_not_indexed():
-    # Only NEC/NECext are indexed today -- see remote_database.py.
+    # Only NEC/NECext are indexed today: see remote_database.py.
     decoded = DecodedSignal(protocol="SIRC", address=1, command=1)
     assert lookup_bundled(decoded) == []
 
@@ -44,7 +44,7 @@ def test_search_bundled_ranks_brand_matches_above_incidental_ones():
 
 def test_search_bundled_excludes_the_low_quality_converted_category():
     # _Converted_ entries have placeholder brand/model names (e.g. "CSV",
-    # "0  1") from an auto-conversion with no real attribution -- useless
+    # "0  1") from an auto-conversion with no real attribution: useless
     # as a search result, see build_flipper_index.py's _EXCLUDED_CATEGORIES.
     results = search_bundled("power", limit=500)
     assert all(r.category != "_Converted_" for r in results)
@@ -58,7 +58,7 @@ def test_search_bundled_ignores_stopwords_and_empty_query():
 def test_search_bundled_results_are_fireable():
     # The whole point: a search result must round-trip through encode_nec
     # into a real raw timing list, and that timing list must decode back
-    # to the same code -- otherwise "pick a result and save it" would
+    # to the same code: otherwise "pick a result and save it" would
     # silently save the wrong signal.
     results = search_bundled("awa power")
     match = next(r for r in results if r.brand == "AWA")

@@ -28,14 +28,14 @@ export type RecordStep =
 
 /** The de-facto standard IR carrier. Only used for hand-written raw
  * commands, where there's no receiving entity to read the real carrier
- * from (see receiverFrequencyHz) -- most IR receivers ignore a
+ * from (see receiverFrequencyHz): most IR receivers ignore a
  * transmission at the wrong carrier entirely, so a sane default matters.
  * RF is unmodulated, hence 0. */
 const DEFAULT_IR_CARRIER_HZ = 38000;
 
 // Only two roles exist today (leader + repeat, matching the only
-// multi-shape protocol the backend knows how to detect -- see
-// signal_shapes.py) -- so the picker caps selection at 2 rather than
+// multi-shape protocol the backend knows how to detect: see
+// signal_shapes.py): so the picker caps selection at 2 rather than
 // supporting an arbitrary-length sequence.
 const MAX_SELECTABLE_SHAPES = 2;
 
@@ -45,14 +45,14 @@ class RecordingWizard {
   deviceId = $state<string | null>(null);
   sessionId = $state<string | null>(null);
   /** Each entry is one full raw-signal capture (mark/space pairs), as they
-   * arrive live -- see recording_ws.py: ir_rf_proxy delivers a whole press
+   * arrive live: see recording_ws.py: ir_rf_proxy delivers a whole press
    * atomically, not byte by byte, so the terminal renders capture-sized
    * chunks rather than a true per-sample stream.
    */
   captures = $state<number[][]>([]);
   finalTimings = $state<number[] | null>(null);
   /** Set only for a two-shape command (leader = finalTimings, this =
-   * the repeat shape) -- either auto-detected (detectedProtocol set) or
+   * the repeat shape): either auto-detected (detectedProtocol set) or
    * chosen by the user in the "choose-shapes" step.
    */
   repeatTimings = $state<number[] | null>(null);
@@ -61,7 +61,7 @@ class RecordingWizard {
    */
   detectedProtocol = $state<DetectedProtocolInfo | null>(null);
   /** Populated only when stopRecording() couldn't resolve to a single
-   * shape or a recognized protocol -- the "choose-shapes" step shows
+   * shape or a recognized protocol: the "choose-shapes" step shows
    * these and lets the user pick up to 2.
    */
   shapeCandidates = $state<ShapeCandidate[] | null>(null);
@@ -69,7 +69,7 @@ class RecordingWizard {
   /** Structural protocol decode of the resolved capture (e.g. "NEC,
    * address 0x04, command 0x08") and any suggested brand/model/button
    * name matches, both best-effort and shown on the "name" step. Neither
-   * is required to proceed -- see esphome/protocol_decode.py and
+   * is required to proceed: see esphome/protocol_decode.py and
    * esphome/remote_database.py on the backend. */
   decoded = $state<DecodedSignalInfo | null>(null);
   remoteMatches = $state<RemoteMatch[]>([]);
@@ -102,7 +102,7 @@ class RecordingWizard {
 
   /** True once anything has been captured. The recording step's only
    * forward action is Next, which stops the session itself (see
-   * stopAndProceed) -- so this gates on having *something* to keep, not on
+   * stopAndProceed): so this gates on having *something* to keep, not on
    * the session already having been stopped. */
   get canProceedFromRecording() {
     return this.captures.length > 0 || this.finalTimings !== null || this.shapeCandidates !== null;
@@ -191,7 +191,7 @@ class RecordingWizard {
     this.detectedProtocol = null;
     this.shapeCandidates = null;
     // Hand-written timings never go through the backend's decode/lookup
-    // step (that only runs in stop_recording) -- clear any leftovers from
+    // step (that only runs in stop_recording): clear any leftovers from
     // a previous live recording rather than showing stale suggestions.
     this.decoded = null;
     this.remoteMatches = [];
@@ -302,7 +302,7 @@ class RecordingWizard {
       this.unsubscribeWs = null;
 
       if (result.timings) {
-        // Every capture was the same shape -- the common case, ready to
+        // Every capture was the same shape: the common case, ready to
         // save as-is.
         this.finalTimings = result.timings;
       } else if (result.detected_protocol) {
@@ -312,7 +312,7 @@ class RecordingWizard {
         this.repeatTimings = result.detected_protocol.repeat_timings;
         this.detectedProtocol = result.detected_protocol;
       } else if (result.shape_candidates) {
-        // Multiple distinct shapes, no recognized protocol -- the
+        // Multiple distinct shapes, no recognized protocol: the
         // "choose-shapes" step (see proceedFromRecording) lets the user
         // pick. Default selection: whichever shape(s) tie for the most
         // edges, matching the same "most complete capture" heuristic
@@ -357,7 +357,7 @@ class RecordingWizard {
   toggleShapeSelection(index: number) {
     // A plain Set, not SvelteSet: built as a scratch copy and reassigned
     // wholesale below rather than mutated in place, which is what makes
-    // `$state` reactivity pick it up -- the same immutable-update pattern
+    // `$state` reactivity pick it up: the same immutable-update pattern
     // every other write to selectedShapeIndices in this file already uses.
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const next = new Set(this.selectedShapeIndices);
@@ -375,7 +375,7 @@ class RecordingWizard {
 
   /** The selected shape with the most edges becomes the leader
    * (finalTimings); a second selection, if any, becomes the repeat
-   * shape -- deterministic regardless of click order.
+   * shape: deterministic regardless of click order.
    */
   confirmShapeSelection() {
     if (!this.shapeCandidates || this.selectedShapeIndices.size === 0) return;
@@ -404,7 +404,7 @@ class RecordingWizard {
       });
       // Lands on `done` rather than closing outright, so capturing a
       // second command off the same remote doesn't mean walking the whole
-      // wizard again -- see recordAnother().
+      // wizard again: see recordAnother().
       this.savedName = command.name;
       this.step = "done";
       return command;
