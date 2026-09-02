@@ -1,12 +1,5 @@
 # IR/RF Hub
 
-> [!WARNING]
-> **This project is experimental.** It was built quickly, has not been
-> battle-tested across the range of ESPHome/RF hardware out there, and its
-> data model, API, and pairing mechanism may change without notice between
-> versions. Back up anything important, expect rough edges, and please
-> [open an issue](https://github.com/vgyy4/ir-rf-hub/issues) if something
-> breaks rather than assuming it's you.
 
 A Home Assistant App for recording, naming, editing, and firing IR and RF
 commands through ESPHome devices running the [`ir_rf_proxy`](https://esphome.io/components/ir_rf_proxy/)
